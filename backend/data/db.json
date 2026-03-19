@@ -1,0 +1,39 @@
+{
+  "clients": [
+    {
+      "id": "a3c826b8-72da-4964-9180-8790d394f3ab",
+      "name": "Tramontina",
+      "marketplace": "mercadolivre",
+      "username": "tramontina@gmail.com",
+      "password": "tramontina",
+      "createdAt": "2026-03-18T19:16:07.951Z"
+    },
+    {
+      "id": "bb0e20b6-9f95-4ba2-8099-325f390b23b9",
+      "name": "Everest",
+      "marketplace": "shopee",
+      "username": "everest@gmail.com",
+      "password": "everest",
+      "createdAt": "2026-03-18T19:17:00.771Z"
+    }
+  ],
+  "contestacoes": [
+    {
+      "id": "a3c826b8-72da-4964-9180-8790d394f3ab",
+      "clientId": "Tramontina",
+      "clientName": "Tramontina",
+      "marketplace": "mercadolivre",
+      "vendedorNome": "joaozinhoVendeMuito",
+      "vendedorUrl": "link da loja (as vezes não existe)",
+      "textoContestacao": "pois não denuncie não faz favor",
+      "screenshotPath": "teste",
+      "notasFiscais": "NotaFiscal[]",
+      "status": "nova",
+      "foundAt": "2026-03-18T19:19:00.771Z",
+      "revisadaAt": null
+    }
+  ],
+  "scanLog": [],
+  "currentScanStatus": "done",
+  "lastScan": "2026-03-18T19:16:13.614Z"
+}
