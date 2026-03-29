@@ -13,7 +13,7 @@ export function Dashboard({ onNovasChange }: Props) {
   const [contestacoes, setContestacoes] = useState<Contestacao[]>([]);
   const [loading, setLoading]           = useState(true);
   const [scanning, setScanning]         = useState(false);
-  const [filtro, setFiltro]             = useState<"nova" | "revisada" | "">("");
+  const [filtro, setFiltro]             = useState<"nova" | "revisada" | "encaminhadas" | "">("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -75,6 +75,7 @@ export function Dashboard({ onNovasChange }: Props) {
             <option value="">Todas</option>
             <option value="nova">Novas</option>
             <option value="revisada">Revisadas</option>
+            <option value="aguardando resposta">Aguardando Resposta</option>
           </select>
 
           <button
@@ -97,7 +98,7 @@ export function Dashboard({ onNovasChange }: Props) {
           </div>  
           <div className="summary-card">
             <div className="summary-label">Aguardando resposta</div>
-            <div className="summary-value">{summary?.encaminhadas ?? "—"}</div>
+            <div className="summary-value amber">{summary?.encaminhadas ?? "—"}</div>
             <div className="summary-sub">aguardando a resposta do cliente</div>
           </div>
           <div className="summary-card">

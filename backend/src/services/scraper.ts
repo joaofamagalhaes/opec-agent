@@ -6,7 +6,7 @@
 
 import { chromium } from "playwright";
 import path from "path";
-import { Client, Contestacao } from "../types/index.js";
+import { Client, Contestacao, NotaFiscal } from "../types/index.js";
 import { extractNFData } from "./nfExtractor.js";
 
 // NF fictícia para demonstração — simula o texto que viria de um PDF real
@@ -71,13 +71,27 @@ export async function scanClient(client: Client): Promise<Contestacao[]> {
   await new Promise((res) => setTimeout(res, 800));
 
   // Sorteia aleatoriamente se há contestação nova (para demo dinâmica)
-  const hasContestacao = Math.random() > 0.4;
+  const hasContestacao = true
   if (!hasContestacao) return [];
 
   const mockBase = MOCK_CONTESTACOES[Math.floor(Math.random() * MOCK_CONTESTACOES.length)];
 
-  // Extrai dados da NF usando a Claude API de verdade
-  const nf = await extractNFData(MOCK_NF_TEXT, "nf_000123456.pdf", "data/nfs/mock_nf.pdf");
+  // Extrai dados da NF usando a Claude API de verdade (desativado no momento)
+  // const nf = await extractNFData(MOCK_NF_TEXT, "nf_000123456.pdf", "data/nfs/mock_nf.pdf");
+  // Mock fixo para testar a demo
+  const nf: NotaFiscal = {
+  fileName: "nf_000123456.pdf",
+  filePath: "data/nfs/mock_nf.pdf",
+  rawText: MOCK_NF_TEXT,
+  cnpjEmitente: "12345678000190",
+  nomeEmitente: "Comercial Distribuidora Silva Ltda",
+  cnpjDestinatario: "98765432000111",
+  nomeDestinatario: "Marketplace Vendedor Individual",
+  produto: "Tênis Esportivo Running Pro",
+  valorTotal: 1899.00,
+  dataEmissao: "2025-03-10",
+  numeroNF: "000123456",
+};
 
   const contestacao: Contestacao = {
     id: `${client.id}_${Date.now()}`,

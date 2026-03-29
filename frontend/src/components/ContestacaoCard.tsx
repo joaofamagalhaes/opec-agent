@@ -1,7 +1,7 @@
 // components/ContestacaoCard.tsx
 import { useState } from "react";
 import { Contestacao } from "../types";
-import { marcarRevisada } from "../services/api";
+import { marcarRevisada, marcarEncaminhada, marcarNova } from "../services/api";
 
 interface Props {
   contestacao: Contestacao;
@@ -11,10 +11,35 @@ interface Props {
 export function ContestacaoCard({ contestacao: c, onRevisada }: Props) {
   const [loading, setLoading] = useState(false);
 
+  async function handleEncaminhar() {
+    setLoading(true);
+    try {
+      await marcarEncaminhada(c.id);
+      onRevisada(); // recarrega a lista
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleRevisar() {
     setLoading(true);
     try {
       await marcarRevisada(c.id);
+      onRevisada();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVoltar() {
+    setLoading(true);
+    try {
+      if (c.status === "encaminhada") await marcarNova(c.id);
+      if (c.status === "revisada") await marcarEncaminhada(c.id);
       onRevisada();
     } catch (err) {
       console.error(err);
@@ -39,7 +64,9 @@ export function ContestacaoCard({ contestacao: c, onRevisada }: Props) {
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="card-header">
         <span className={`status-dot ${c.status}`} />
-        <span className={`marketplace-badge ${c.marketplace === "mercadolivre" ? "ml" : "shopee"}`}>
+        <span
+          className={`marketplace-badge ${c.marketplace === "mercadolivre" ? "ml" : "shopee"}`}
+        >
           {c.marketplace === "mercadolivre" ? "Mercado Livre" : "Shopee"}
         </span>
         <span className="card-client">{c.clientName}</span>
@@ -51,7 +78,12 @@ export function ContestacaoCard({ contestacao: c, onRevisada }: Props) {
         <div className="card-section">
           <div className="section-label">Vendedor</div>
           <div className="vendedor-name">{c.vendedorNome}</div>
-          <a className="vendedor-url" href={c.vendedorUrl} target="_blank" rel="noreferrer">
+          <a
+            className="vendedor-url"
+            href={c.vendedorUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
             {c.vendedorUrl}
           </a>
         </div>
@@ -59,6 +91,13 @@ export function ContestacaoCard({ contestacao: c, onRevisada }: Props) {
           <div className="section-label">Resposta do vendedor</div>
           <p className="contestacao-text">{c.textoContestacao}</p>
         </div>
+        {/* Mostra quando o card foi encaminhado para CS */}
+        {c.status === "revisada" && c.encaminhadaAt && (
+          <div className="card-section">
+            <div className="section-label">Encaminhado para CS</div>
+            <div className="vendedor-name">{timeAgo(c.encaminhadaAt)}</div>
+          </div>
+        )}
       </div>
 
       {/* ── NF extraída pela IA ────────────────────────────────── */}
@@ -70,16 +109,23 @@ export function ContestacaoCard({ contestacao: c, onRevisada }: Props) {
           </div>
           <div className="nf-grid">
             {[
-              { label: "Emitente",    value: nf.nomeEmitente },
-              { label: "CNPJ",        value: nf.cnpjEmitente },
-              { label: "Produto",     value: nf.produto },
-              { label: "Valor total", value: nf.valorTotal != null
-                  ? nf.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                  : null },
-              { label: "Nº NF",       value: nf.numeroNF },
-              { label: "Emissão",     value: nf.dataEmissao },
+              { label: "Emitente", value: nf.nomeEmitente },
+              { label: "CNPJ", value: nf.cnpjEmitente },
+              { label: "Produto", value: nf.produto },
+              {
+                label: "Valor total",
+                value:
+                  nf.valorTotal != null
+                    ? nf.valorTotal.toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })
+                    : null,
+              },
+              { label: "Nº NF", value: nf.numeroNF },
+              { label: "Emissão", value: nf.dataEmissao },
               { label: "Destinatário", value: nf.nomeDestinatario },
-              { label: "CNPJ dest.",  value: nf.cnpjDestinatario },
+              { label: "CNPJ dest.", value: nf.cnpjDestinatario },
             ].map(({ label, value }) => (
               <div className="nf-field" key={label}>
                 <div className="nf-field-label">{label}</div>
@@ -99,8 +145,32 @@ export function ContestacaoCard({ contestacao: c, onRevisada }: Props) {
         {/* TODO: baixar pacote completo (print + NFs) */}
         <button className="btn btn-ghost btn-sm">↓ Baixar pacote</button>
         {c.status === "nova" && (
-          <button className="btn btn-primary btn-sm" onClick={handleRevisar} disabled={loading}>
-            {loading ? "..." : "✓  Marcar revisada"}
+          <button
+            className="btn btn-nova btn-sm"
+            onClick={handleEncaminhar}
+            disabled={loading}
+          >
+            {loading ? "..." : "↗ Encaminhar para CS"}
+          </button>
+        )}
+        {c.status === "encaminhada" && (
+          <button
+            className="btn btn-encaminhada btn-sm"
+            onClick={handleRevisar}
+            disabled={loading}
+          >
+            {loading ? "..." : "✓ Marcar revisada"}
+          </button>
+        )}
+        {/* // implementação do botão de correção, podemos voltar a estados
+        anteriores */}
+        {(c.status === "encaminhada" || c.status === "revisada") && (
+          <button
+            className="btn btn-sm btn-voltar"
+            onClick={handleVoltar}
+            disabled={loading}
+          >
+            ← Voltar
           </button>
         )}
       </div>

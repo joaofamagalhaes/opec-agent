@@ -6,6 +6,8 @@ import { router } from "./routes/api.js";
 
 dotenv.config();
 
+console.log("API KEY carregada:", process.env.ANTHROPIC_API_KEY ? "SIM" : "NÃO");
+
 const app = express();
 const PORT = process.env.PORT || 3333;
 

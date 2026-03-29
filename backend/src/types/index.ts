@@ -78,6 +78,7 @@ export interface ScanLog {
 export interface SummaryResponse {
   total: number;
   novas: number;
+  encaminhadas: number;
   revisadas: number;
   clientesComNovas: number;
   lastScan: string | null;

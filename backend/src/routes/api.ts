@@ -22,7 +22,9 @@ router.post("/clients", (req: Request, res: Response) => {
   const { name, marketplace, username, password } = req.body;
 
   if (!name || !marketplace || !username || !password) {
-    res.status(400).json({ error: "Campos obrigatórios: name, marketplace, username, password" });
+    res.status(400).json({
+      error: "Campos obrigatórios: name, marketplace, username, password",
+    });
     return;
   }
 
@@ -70,13 +72,26 @@ router.get("/contestacoes/summary", (_req: Request, res: Response) => {
   res.json({
     total: all.length,
     novas: all.filter((c) => c.status === "nova").length,
+    encaminhadas: all.filter((c) => c.status === "encaminhada").length,
     revisadas: all.filter((c) => c.status === "revisada").length,
     clientesComNovas: new Set(
-      all.filter((c) => c.status === "nova").map((c) => c.clientId)
+      all.filter((c) => c.status === "nova").map((c) => c.clientId),
     ).size,
     lastScan: db.getLastScan(),
     scanStatus: db.getScanStatus(),
   });
+});
+
+// PATCH /contestacoes/:id/nova - contestações podem retornar ao estado de "novas"
+router.patch("/contestacoes/:id/nova", (req, res) => {
+  db.markAsNova(req.params.id);
+  res.json({ ok: true });
+});
+
+// PATCH /contestacoes/:id/encaminhar - contestações encaminhadas para o time de CS
+router.patch("/contestacoes/:id/encaminhar", (req, res) => {
+  db.markAsEncaminhada(req.params.id);
+  res.json({ ok: true });
 });
 
 // PATCH /contestacoes/:id/revisar — marca como revisada
@@ -104,7 +119,10 @@ router.post("/scan", async (req: Request, res: Response) => {
   }
 
   // Responde imediatamente — scan roda em background
-  res.json({ ok: true, message: `Scan iniciado para ${targets.length} cliente(s)` });
+  res.json({
+    ok: true,
+    message: `Scan iniciado para ${targets.length} cliente(s)`,
+  });
 
   // Executa o scan em background
   db.setScanStatus("running");

@@ -1,39 +1,46 @@
 {
   "clients": [
     {
-      "id": "a3c826b8-72da-4964-9180-8790d394f3ab",
-      "name": "Tramontina",
+      "id": "93ee4b72-d816-47e0-9bbe-93f5b310aa75",
+      "name": "Tramontis",
       "marketplace": "mercadolivre",
-      "username": "tramontina@gmail.com",
-      "password": "tramontina",
-      "createdAt": "2026-03-18T19:16:07.951Z"
-    },
-    {
-      "id": "bb0e20b6-9f95-4ba2-8099-325f390b23b9",
-      "name": "Everest",
-      "marketplace": "shopee",
-      "username": "everest@gmail.com",
-      "password": "everest",
-      "createdAt": "2026-03-18T19:17:00.771Z"
+      "username": "joajaojasoj",
+      "password": "dfsjapfdf",
+      "createdAt": "2026-03-20T01:43:24.117Z"
     }
   ],
   "contestacoes": [
     {
-      "id": "a3c826b8-72da-4964-9180-8790d394f3ab",
-      "clientId": "Tramontina",
-      "clientName": "Tramontina",
+      "id": "93ee4b72-d816-47e0-9bbe-93f5b310aa75_1774812338616",
+      "clientId": "93ee4b72-d816-47e0-9bbe-93f5b310aa75",
+      "clientName": "Tramontis",
       "marketplace": "mercadolivre",
-      "vendedorNome": "joaozinhoVendeMuito",
-      "vendedorUrl": "link da loja (as vezes não existe)",
-      "textoContestacao": "pois não denuncie não faz favor",
-      "screenshotPath": "teste",
-      "notasFiscais": "NotaFiscal[]",
+      "vendedorNome": "distribuidora_silva_oficial",
+      "vendedorUrl": "https://www.mercadolivre.com.br/perfil/distribuidora_silva",
+      "textoContestacao": "Somos revendedor autorizado da marca. Segue nota fiscal de compra legítima do produto diretamente do fabricante. Não há violação de marca, pois adquirimos o estoque de forma regular.",
+      "screenshotPath": "data/screenshots/mock_ml_contestacao.png",
+      "notasFiscais": [
+        {
+          "fileName": "nf_000123456.pdf",
+          "filePath": "data/nfs/mock_nf.pdf",
+          "rawText": "\nNOTA FISCAL ELETRÔNICA - NF-e\nNúmero: 000123456   Série: 001   Data de Emissão: 2025-03-10\n\nEMITENTE\nRazão Social: COMERCIAL DISTRIBUIDORA SILVA LTDA\nCNPJ: 12.345.678/0001-90\nEndereço: Rua das Flores, 456 - São Paulo/SP\n\nDESTINATÁRIO\nRazão Social: MARKETPLACE VENDEDOR INDIVIDUAL\nCNPJ: 98.765.432/0001-11\n\nPRODUTOS\n001 - Produto: Tênis Esportivo Running Pro - Ref. TE-2024\n      Quantidade: 10 UN   Valor Unitário: R$ 189,90\n      Valor Total: R$ 1.899,00\n\nTOTAL DA NOTA\nValor Total dos Produtos: R$ 1.899,00\nValor do ICMS: R$ 341,82\nValor Total da NF-e: R$ 1.899,00\n",
+          "cnpjEmitente": "12345678000190",
+          "nomeEmitente": "Comercial Distribuidora Silva Ltda",
+          "cnpjDestinatario": "98765432000111",
+          "nomeDestinatario": "Marketplace Vendedor Individual",
+          "produto": "Tênis Esportivo Running Pro",
+          "valorTotal": 1899,
+          "dataEmissao": "2025-03-10",
+          "numeroNF": "000123456"
+        }
+      ],
       "status": "nova",
-      "foundAt": "2026-03-18T19:19:00.771Z",
+      "foundAt": "2026-03-29T19:25:38.616Z",
+      "encaminhadaAt": null,
       "revisadaAt": null
     }
   ],
   "scanLog": [],
   "currentScanStatus": "done",
-  "lastScan": "2026-03-18T19:16:13.614Z"
+  "lastScan": "2026-03-29T19:25:38.618Z"
 }

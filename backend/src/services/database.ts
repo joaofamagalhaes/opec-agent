@@ -79,6 +79,26 @@ export function addContestacao(contestacao: Contestacao): void {
   write(db);
 }
 
+export function markAsNova(id: string): void {
+  const db = read();
+  const item = db.contestacoes.find((c) => c.id === id);
+  if (!item) throw new Error("Contestação não encontrada");
+  item.status = "nova";
+  item.encaminhadaAt = null;
+  item.revisadaAt = null;
+  write(db);
+}
+
+export function markAsEncaminhada(id: string): void {
+  const db = read();
+  const item = db.contestacoes.find((c) => c.id === id);
+  if (!item) throw new Error("Contestação não encontrada");
+  item.status = "encaminhada";
+  item.revisadaAt = null;
+  item.encaminhadaAt = new Date().toISOString();
+  write(db);
+}
+
 export function markAsRevisada(id: string): void {
   const db = read();
   const item = db.contestacoes.find((c) => c.id === id);

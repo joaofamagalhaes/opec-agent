@@ -37,6 +37,7 @@ export interface Contestacao {
   notasFiscais: NotaFiscal[];
   status: ContestacaoStatus;
   foundAt: string;
+  encaminhadaAt: string | null;
   revisadaAt: string | null;
 }
 
