@@ -10,18 +10,18 @@ export type ContestacaoStatus = "nova" | "revisada" | "encaminhada";
 
 export interface Client {
   id: string;
-  name: string;           // Nome da marca/cliente
+  name: string; // Nome da marca/cliente
   marketplace: Marketplace;
   username: string;
-  password: string;       // TODO: criptografar em produção
-  createdAt: string;      // ISO 8601
+  password: string; // TODO: criptografar em produção
+  createdAt: string; // ISO 8601
 }
 
 // ── Nota Fiscal ──────────────────────────────────────────────────────────────
 
 export interface NotaFiscal {
   fileName: string;
-  filePath: string;       // Caminho local do PDF baixado
+  filePath: string; // Caminho local do PDF baixado
 
   // Campos extraídos pela IA — null se não encontrado no documento
   cnpjEmitente: string | null;
@@ -48,15 +48,15 @@ export interface Contestacao {
   // Dados coletados pelo scraper
   vendedorNome: string;
   vendedorUrl: string | null; // Pode ser inexistente/inválido
-  textoContestacao: string;   // Resposta do vendedor
-  screenshotPath: string;     // Caminho do print salvo localmente
+  textoContestacao: string; // Resposta do vendedor
+  screenshotPath: string; // Caminho do print salvo localmente
   notasFiscais: NotaFiscal[]; // NFs baixadas e extraídas
 
   // Metadados
   status: ContestacaoStatus;
-  foundAt: string;            // Quando o robô detectou
-  encaminhadaAt: string | null // Quando for enviada para CS
-  revisadaAt: string | null;  // Quando o analista marcou como revisada
+  foundAt: string; // Quando o robô detectou
+  encaminhadaAt: string | null; // Quando for enviada para CS
+  revisadaAt: string | null; // Quando o analista marcou como revisada
 }
 
 // ── Scan ─────────────────────────────────────────────────────────────────────
@@ -83,4 +83,15 @@ export interface SummaryResponse {
   clientesComNovas: number;
   lastScan: string | null;
   scanStatus: ScanStatus;
+}
+
+//novo tipo, grupo de contestações por cliente
+export interface GrupoCliente {
+  clientId: string;
+  clientName: string;
+  marketplace: Marketplace;
+  contestacoes: Contestacao[];
+  novas: number;
+  encaminhadas: number;
+  revisadas: number;
 }

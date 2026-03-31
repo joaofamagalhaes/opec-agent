@@ -1,36 +1,31 @@
 // pages/Dashboard.tsx
 import { useEffect, useState, useCallback } from "react";
-import { getSummary, getContestacoes, startScan } from "../services/api";
-import { Contestacao, SummaryResponse } from "../types";
-import { ContestacaoCard } from "../components/ContestacaoCard";
+import { getSummary, getAgrupadas, startScan } from "../services/api";
+import { SummaryResponse, GrupoCliente } from "../types";
+// import { ContestacaoCard } from "../components/ContestacaoCard";
+import { GrupoCard } from "../components/GrupoCards";
 
 interface Props {
   onNovasChange: (n: number) => void;
 }
 
 export function Dashboard({ onNovasChange }: Props) {
-  const [summary, setSummary]           = useState<SummaryResponse | null>(null);
-  const [contestacoes, setContestacoes] = useState<Contestacao[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [scanning, setScanning]         = useState(false);
-  const [filtro, setFiltro]             = useState<"nova" | "revisada" | "encaminhadas" | "">("");
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [grupos, setGrupos] = useState<GrupoCliente[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sum, items] = await Promise.all([
-        getSummary(),
-        getContestacoes(filtro ? { status: filtro } : undefined),
-      ]);
+      const [sum, grps] = await Promise.all([getSummary(), getAgrupadas()]);
       setSummary(sum);
-      setContestacoes(items);
+      setGrupos(grps);
       onNovasChange(sum.novas);
-    } catch (err) {
-      console.error("Erro ao carregar dados:", err);
     } finally {
       setLoading(false);
     }
-  }, [filtro, onNovasChange]);
+  }, [onNovasChange]);
 
   async function handleScan() {
     setScanning(true);
@@ -52,32 +47,25 @@ export function Dashboard({ onNovasChange }: Props) {
     }
   }
 
-  function formatLastScan(iso: string | null) {
-    if (!iso) return "Nunca";
-    const d = new Date(iso);
-    return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-  }
+  // Função que indica quando o ultimo scan de contas foi feito, desativado por hora
+  // function formatLastScan(iso: string | null) {
+  //   if (!iso) return "Nunca";
+  //   const d = new Date(iso);
+  //   return d.toLocaleString("pt-BR", {
+  //     dateStyle: "short",
+  //     timeStyle: "short",
+  //   });
+  // }
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   return (
     <>
-      {/* ── Topbar ───────────────────────────────────────────────── */}
       <div className="topbar">
         <span className="topbar-title">Contestações</span>
         <div className="topbar-actions">
-          <select
-            className="form-select"
-            style={{ width: 150 }}
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value as any)}
-          >
-            <option value="">Todas</option>
-            <option value="nova">Novas</option>
-            <option value="revisada">Revisadas</option>
-            <option value="aguardando resposta">Aguardando Resposta</option>
-          </select>
-
           <button
             className={`btn btn-scan ${scanning ? "scanning" : ""}`}
             onClick={handleScan}
@@ -89,54 +77,68 @@ export function Dashboard({ onNovasChange }: Props) {
       </div>
 
       <div className="page-content">
-        {/* ── Summary cards ──────────────────────────────────────── */}
+        {/* Summary */}
         <div className="summary-grid">
-          <div className="summary-card">
+          <div className="summary-card highlight">
             <div className="summary-label">Novas</div>
             <div className="summary-value accent">{summary?.novas ?? "—"}</div>
             <div className="summary-sub">aguardando revisão</div>
-          </div>  
+          </div>
           <div className="summary-card">
             <div className="summary-label">Aguardando resposta</div>
-            <div className="summary-value amber">{summary?.encaminhadas ?? "—"}</div>
-            <div className="summary-sub">aguardando a resposta do cliente</div>
+            <div className="summary-value amber">
+              {summary?.encaminhadas ?? "—"}
+            </div>
+            <div className="summary-sub">encaminhadas ao CS</div>
           </div>
           <div className="summary-card">
             <div className="summary-label">Revisadas</div>
-            <div className="summary-value green">{summary?.revisadas ?? "—"}</div>
+            <div className="summary-value green">
+              {summary?.revisadas ?? "—"}
+            </div>
             <div className="summary-sub">total histórico</div>
           </div>
           <div className="summary-card">
             <div className="summary-label">Último scan</div>
-            <div className="summary-value" style={{ fontSize: 15, marginTop: 4 }}>
-              {formatLastScan(summary?.lastScan ?? null)}
+            <div
+              className="summary-value"
+              style={{ fontSize: 15, marginTop: 4 }}
+            >
+              {summary?.lastScan
+                ? new Date(summary.lastScan).toLocaleString("pt-BR", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })
+                : "Nunca"}
             </div>
             <div className="summary-sub">
               {summary?.scanStatus === "running" ? (
                 <span className="text-accent">● rodando agora</span>
-              ) : "automático todo dia"}
+              ) : (
+                "automático todo dia"
+              )}
             </div>
           </div>
         </div>
 
-        {/* ── Lista ───────────────────────────────────────────────── */}
+        {/* Grupos */}
         {loading ? (
           <div className="loading">
             <div className="spinner" />
-            Carregando contestações...
+            Carregando...
           </div>
-        ) : contestacoes.length === 0 ? (
+        ) : grupos.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">◎</div>
-            <div className="empty-state-title">Nenhuma contestação encontrada</div>
+            <div className="empty-state-title">Nenhum cliente cadastrado</div>
             <div className="empty-state-sub">
-              Execute um scan para verificar as contas dos clientes.
+              Adicione clientes na aba Clientes.
             </div>
           </div>
         ) : (
           <div className="contestacao-list">
-            {contestacoes.map((c) => (
-              <ContestacaoCard key={c.id} contestacao={c} onRevisada={loadData} />
+            {grupos.map((g) => (
+              <GrupoCard key={g.clientId} grupo={g} onUpdate={loadData} />
             ))}
           </div>
         )}

@@ -1,3 +1,4 @@
+//Arquivo inutilizado por hora, contestações são vistas em grupos
 // components/ContestacaoCard.tsx
 import { useState } from "react";
 import { Contestacao } from "../types";

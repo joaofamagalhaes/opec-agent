@@ -2,7 +2,7 @@
 // Centraliza todas as chamadas HTTP ao backend.
 // Se a URL do backend mudar, só precisa alterar aqui.
 
-import { Client, Contestacao, SummaryResponse } from "../types/index.js";
+import { Client, SummaryResponse, GrupoCliente } from "../types/index.js";
 
 const BASE_URL = "http://localhost:3333/api";
 
@@ -33,14 +33,14 @@ export const deleteClient = (id: string) =>
   request<{ ok: boolean }>(`/clients/${id}`, { method: "DELETE" });
 
 // ── Contestações ─────────────────────────────────────────────────────────────
-
-export const getContestacoes = (filters?: {
-  clientId?: string;
-  status?: string;
-}) => {
-  const params = new URLSearchParams(filters as Record<string, string>);
-  return request<Contestacao[]>(`/contestacoes?${params}`);
-};
+//não utilizada por hora
+// export const getContestacoes = (filters?: {
+//   clientId?: string;
+//   status?: string;
+// }) => {
+//   const params = new URLSearchParams(filters as Record<string, string>);
+//   return request<Contestacao[]>(`/contestacoes?${params}`);
+// };
 
 export const getSummary = () =>
   request<SummaryResponse>("/contestacoes/summary");
@@ -55,6 +55,21 @@ export const marcarEncaminhada = (id: string) =>
 
 export const marcarRevisada = (id: string) =>
   request<{ ok: boolean }>(`/contestacoes/${id}/revisar`, { method: "PATCH" });
+
+//novo tipo, contestações agrupadas por cliente
+export const getAgrupadas = () =>
+  request<GrupoCliente[]>("/contestacoes/agrupadas");
+
+export const encaminharLote = (ids: string[]) =>
+  request<{ ok: boolean; count: number }>("/contestacoes/lote/encaminhar", {
+    method: "PATCH",
+    body: JSON.stringify({ ids }),
+  });
+
+export const baixarPacote = (ids: string[], clientName: string) => {
+  const params = ids.join(",");
+  window.open(`${BASE_URL}/contestacoes/lote/pacote?ids=${params}`, "_blank");
+};
 
 // ── Scan ─────────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,8 @@
 // routes/api.ts
 // Define todos os endpoints REST da aplicação.
-
+import archiver from "archiver";
+import path from "path";
+import fs from "fs";
 import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import * as db from "../services/database.js";
@@ -150,4 +152,100 @@ router.get("/scan/status", (_req: Request, res: Response) => {
     status: db.getScanStatus(),
     lastScan: db.getLastScan(),
   });
+});
+
+// Agrupa contestações por cliente, mais organização
+
+router.get("/contestacoes/agrupadas", (_req, res) => {
+  const clientes = db.getClients();
+  const contestacoes = db.getContestacoes();
+
+  const grupos = clientes.map((cliente) => {
+    const itens = contestacoes
+      .filter((c) => c.clientId === cliente.id)
+      .sort((a, b) => b.foundAt.localeCompare(a.foundAt));
+
+    return {
+      clientId: cliente.id,
+      clientName: cliente.name,
+      marketplace: cliente.marketplace,
+      contestacoes: itens,
+      novas: itens.filter((c) => c.status === "nova").length,
+      encaminhadas: itens.filter((c) => c.status === "encaminhada").length,
+      revisadas: itens.filter((c) => c.status === "revisada").length,
+    };
+  });
+
+  // Ordena: com novas primeiro, depois encaminhadas, depois limpos
+  grupos.sort((a, b) => {
+    if (a.novas !== b.novas) return b.novas - a.novas;
+    if (a.encaminhadas !== b.encaminhadas)
+      return b.encaminhadas - a.encaminhadas;
+    return a.clientName.localeCompare(b.clientName);
+  });
+
+  res.json(grupos);
+});
+
+//encaminha as contestações em "lote"
+router.patch("/contestacoes/lote/encaminhar", (req, res) => {
+  const { ids }: { ids: string[] } = req.body;
+  if (!ids?.length) {
+    res.status(400).json({ error: "ids obrigatório" });
+    return;
+  }
+  ids.forEach((id) => db.markAsEncaminhada(id));
+  res.json({ ok: true, count: ids.length });
+});
+
+// baixa o "pacote" de contestações por cliente
+
+router.get("/contestacoes/lote/pacote", (req, res) => {
+  const ids = (req.query.ids as string)?.split(",") ?? [];
+  if (!ids.length) {
+    res.status(400).json({ error: "ids obrigatório" });
+    return;
+  }
+
+  const contestacoes = db.getContestacoes().filter((c) => ids.includes(c.id));
+  if (!contestacoes.length) {
+    res.status(404).json({ error: "nenhuma encontrada" });
+    return;
+  }
+
+  const clientName = contestacoes[0].clientName
+    .replace(/\s+/g, "_")
+    .toLowerCase();
+  const marketplace = contestacoes[0].marketplace;
+
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=${clientName}_${marketplace}_pacote.zip`,
+  );
+
+  const archive = archiver("zip");
+  archive.pipe(res);
+
+  contestacoes.forEach((c) => {
+    const vendedor = c.vendedorNome.replace(/\s+/g, "_").toLowerCase();
+
+    // Screenshot renomeado com nome do vendedor
+    if (fs.existsSync(c.screenshotPath)) {
+      archive.file(c.screenshotPath, {
+        name: `${marketplace}_${clientName}_${vendedor}_screenshot.png`,
+      });
+    }
+
+    // NFs renomeadas com nome do vendedor
+    c.notasFiscais.forEach((nf, i) => {
+      if (fs.existsSync(nf.filePath)) {
+        archive.file(nf.filePath, {
+          name: `${marketplace}_${clientName}_${vendedor}_nf_${nf.numeroNF ?? i + 1}.pdf`,
+        });
+      }
+    });
+  });
+
+  archive.finalize();
 });

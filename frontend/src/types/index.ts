@@ -50,3 +50,13 @@ export interface SummaryResponse {
   lastScan: string | null;
   scanStatus: ScanStatus;
 }
+//novo tipo, grupo de contestações por cliente
+export interface GrupoCliente {
+  clientId: string;
+  clientName: string;
+  marketplace: Marketplace;
+  contestacoes: Contestacao[];
+  novas: number;
+  encaminhadas: number;
+  revisadas: number;
+}

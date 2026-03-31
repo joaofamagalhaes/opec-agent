@@ -545,7 +545,7 @@ body,
 
 .nf-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
 
@@ -768,4 +768,264 @@ body,
 
 .fw-600 {
   font-weight: 600;
+}
+
+/* Novos estilos, atualização grupo de cards por cliente */
+/* ── Grupo card ──────────────────────────────────────────────────────────── */
+
+.grupo-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.grupo-card.group-nova {
+  border-left: 3px solid var(--accent);
+}
+
+.grupo-card.group-encaminhada {
+  border-left: 3px solid var(--amber);
+}
+
+.grupo-card.group-revisado {
+  border-left: 3px solid var(--green);
+  opacity: 0.75;
+}
+
+.grupo-card.group-limpo {
+  border-left: 3px solid var(--border);
+  opacity: 0.5;
+}
+
+.grupo-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.grupo-header:hover {
+  background: var(--bg-hover);
+}
+
+.grupo-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.grupo-nome {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.grupo-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.grupo-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+
+.badge-nova {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.badge-encaminhada {
+  background: var(--amber-dim);
+  color: var(--amber);
+}
+
+.badge-revisada {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.badge-limpo {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.grupo-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.grupo-chevron {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+.grupo-body {
+  border-top: 1px solid var(--border-lt);
+}
+
+/* ── Bulk bar ────────────────────────────────────────────────────────────── */
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: var(--accent-dim);
+  border-bottom: 1px solid rgba(124, 106, 247, 0.15);
+}
+
+.bulk-text {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── Contestação row ─────────────────────────────────────────────────────── */
+
+.contestacao-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 140px 100px 160px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-lt);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.contestacao-row:last-child {
+  border-bottom: none;
+}
+
+.contestacao-row:hover {
+  background: var(--bg-hover);
+}
+
+.contestacao-row.selecionada {
+  background: var(--accent-dim);
+}
+
+.row-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.row-check.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.row-check-placeholder {
+  width: 16px;
+}
+
+.row-vendedor-nome {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.row-vendedor-url {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+.row-nf-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.row-nf-valor {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+.row-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ── Row expandido ───────────────────────────────────────────────────────── */
+
+.row-expandido {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 14px 18px 18px 58px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-lt);
+}
+
+.row-expandido p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: 6px;
+}
+
+.status-pill {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pill-nova {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.pill-encaminhada {
+  background: var(--amber-dim);
+  color: var(--amber);
+}
+
+.pill-revisada {
+  background: var(--green-dim);
+  color: var(--green);
 }
