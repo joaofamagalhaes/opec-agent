@@ -5,6 +5,7 @@
 import fs from "fs";
 import path from "path";
 import { Client, Contestacao, ScanLog, ScanStatus } from "../types/index.js";
+import { encrypt, decrypt } from "./crypto.js";
 
 const DATA_DIR = path.resolve("data");
 const DB_FILE = path.join(DATA_DIR, "db.json");
@@ -49,7 +50,7 @@ function write(data: Database) {
 // ── Clientes ─────────────────────────────────────────────────────────────────
 
 export function getClients(): Client[] {
-  return read().clients;
+  return read().clients.map((c) => ({ ...c, password: decrypt(c.password) }));
 }
 
 export function addClient(client: Client): void {
@@ -57,13 +58,15 @@ export function addClient(client: Client): void {
   if (db.clients.find((c) => c.id === client.id)) {
     throw new Error("Cliente já existe com esse ID");
   }
-  db.clients.push(client);
+  db.clients.push({ ...client, password: encrypt(client.password) });
   write(db);
 }
 
 export function deleteClient(id: string): void {
   const db = read();
   db.clients = db.clients.filter((c) => c.id !== id);
+  // Remove contestações órfãs do cliente deletado
+  db.contestacoes = db.contestacoes.filter((c) => c.clientId !== id);
   write(db);
 }
 

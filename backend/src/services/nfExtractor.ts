@@ -3,10 +3,10 @@
 // Este é o único serviço que usa IA de verdade no MVP.
 
 import Anthropic from "@anthropic-ai/sdk";
-import fs from "fs";
 import { NotaFiscal } from "../types/index.js";
 
-const client = new Anthropic(); // Lê ANTHROPIC_API_KEY do ambiente automaticamente
+// Instância reutilizada — evita criar um novo client por chamada
+const anthropic = new Anthropic();
 
 const EXTRACTION_PROMPT = `
 Você receberá o texto extraído de uma Nota Fiscal brasileira.
@@ -27,17 +27,14 @@ Retorne APENAS o JSON, sem markdown, sem explicações.
 `;
 
 /**
- * Extrai dados estruturados de uma NF a partir do caminho do PDF.
- * Por enquanto recebe o texto bruto — em produção, use pdf-parse para extrair
- * o texto do PDF antes de chamar esta função.
+ * Extrai dados estruturados de uma NF a partir do texto bruto do PDF.
  */
 export async function extractNFData(
   rawText: string,
   fileName: string,
   filePath: string
 ): Promise<NotaFiscal> {
-  const client = new Anthropic();
-  const message = await client.messages.create({
+  const message = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 1024,
     messages: [
@@ -48,37 +45,27 @@ export async function extractNFData(
     ],
   });
 
-  // Pega o texto da resposta
   const responseText =
     message.content[0].type === "text" ? message.content[0].text : "{}";
 
-  // Parse do JSON retornado pela IA
-  // TODO: adicionar validação com zod em produção
-  const extracted = JSON.parse(responseText);
+  let extracted: Record<string, unknown> = {};
+  try {
+    extracted = JSON.parse(responseText);
+  } catch {
+    console.error("[nfExtractor] Claude retornou JSON inválido:", responseText);
+  }
 
   return {
     fileName,
     filePath,
     rawText,
-    cnpjEmitente: extracted.cnpjEmitente ?? null,
-    nomeEmitente: extracted.nomeEmitente ?? null,
-    cnpjDestinatario: extracted.cnpjDestinatario ?? null,
-    nomeDestinatario: extracted.nomeDestinatario ?? null,
-    produto: extracted.produto ?? null,
-    valorTotal: extracted.valorTotal ?? null,
-    dataEmissao: extracted.dataEmissao ?? null,
-    numeroNF: extracted.numeroNF ?? null,
+    cnpjEmitente: (extracted.cnpjEmitente as string) ?? null,
+    nomeEmitente: (extracted.nomeEmitente as string) ?? null,
+    cnpjDestinatario: (extracted.cnpjDestinatario as string) ?? null,
+    nomeDestinatario: (extracted.nomeDestinatario as string) ?? null,
+    produto: (extracted.produto as string) ?? null,
+    valorTotal: (extracted.valorTotal as number) ?? null,
+    dataEmissao: (extracted.dataEmissao as string) ?? null,
+    numeroNF: (extracted.numeroNF as string) ?? null,
   };
 }
-
-/**
- * TODO: Fase 2 — extrair texto de um PDF real usando pdf-parse.
- * Por enquanto o rawText vem do mock.
- *
- * import pdfParse from "pdf-parse";
- * export async function extractTextFromPDF(filePath: string): Promise<string> {
- *   const buffer = fs.readFileSync(filePath);
- *   const data = await pdfParse(buffer);
- *   return data.text;
- * }
- */

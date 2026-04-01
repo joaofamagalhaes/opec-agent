@@ -4,7 +4,9 @@
 
 import { Client, SummaryResponse, GrupoCliente } from "../types/index.js";
 
-const BASE_URL = "http://localhost:3333/api";
+// Em dev, o Vite proxy redireciona /api → localhost:3333.
+// Em produção, defina VITE_API_URL no ambiente de deploy.
+const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -66,7 +68,7 @@ export const encaminharLote = (ids: string[]) =>
     body: JSON.stringify({ ids }),
   });
 
-export const baixarPacote = (ids: string[], clientName: string) => {
+export const baixarPacote = (ids: string[]) => {
   const params = ids.join(",");
   window.open(`${BASE_URL}/contestacoes/lote/pacote?ids=${params}`, "_blank");
 };

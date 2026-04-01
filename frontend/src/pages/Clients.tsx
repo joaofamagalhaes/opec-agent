@@ -37,9 +37,14 @@ export function Clients() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remover este cliente?")) return;
-    await deleteClient(id);
-    loadClients();
+    if (!confirm("Remover este cliente e todas as suas contestações?")) return;
+    try {
+      await deleteClient(id);
+      loadClients();
+    } catch (err) {
+      console.error("Erro ao remover cliente:", err);
+      alert("Erro ao remover cliente. Tente novamente.");
+    }
   }
 
   useEffect(() => { loadClients(); }, []);
@@ -72,7 +77,7 @@ export function Clients() {
               <select
                 className="form-select"
                 value={form.marketplace}
-                onChange={(e) => setForm({ ...form, marketplace: e.target.value as any })}
+                onChange={(e) => setForm({ ...form, marketplace: e.target.value as "mercadolivre" | "shopee" })}
               >
                 <option value="mercadolivre">Mercado Livre</option>
                 <option value="shopee">Shopee</option>

@@ -54,7 +54,8 @@ export function GrupoCard({ grupo: g, onUpdate }: Props) {
       selecionadas.size > 0
         ? [...selecionadas]
         : g.contestacoes.map((c) => c.id);
-    baixarPacote(ids, g.clientName);
+    if (!ids.length) return;
+    baixarPacote(ids);
   }
 
   // Iniciais do cliente para o avatar

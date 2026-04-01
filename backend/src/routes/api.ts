@@ -7,7 +7,9 @@ import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import * as db from "../services/database.js";
 import { scanClient } from "../services/scraper.js";
-import { Client } from "../types/index.js";
+import { Client, Marketplace } from "../types/index.js";
+
+const VALID_MARKETPLACES: Marketplace[] = ["mercadolivre", "shopee"];
 
 export const router = Router();
 
@@ -30,12 +32,19 @@ router.post("/clients", (req: Request, res: Response) => {
     return;
   }
 
+  if (!VALID_MARKETPLACES.includes(marketplace)) {
+    res.status(400).json({
+      error: `marketplace inválido. Valores aceitos: ${VALID_MARKETPLACES.join(", ")}`,
+    });
+    return;
+  }
+
   const client: Client = {
     id: uuidv4(),
-    name,
+    name: String(name).trim(),
     marketplace,
-    username,
-    password,
+    username: String(username).trim(),
+    password: String(password),
     createdAt: new Date().toISOString(),
   };
 
@@ -44,7 +53,7 @@ router.post("/clients", (req: Request, res: Response) => {
   res.status(201).json(safeClient);
 });
 
-// DELETE /clients/:id — remove cliente
+// DELETE /clients/:id — remove cliente e suas contestações
 router.delete("/clients/:id", (req: Request, res: Response) => {
   db.deleteClient(req.params.id);
   res.json({ ok: true });
@@ -63,7 +72,6 @@ router.get("/contestacoes", (req: Request, res: Response) => {
     items = items.filter((c) => c.status === req.query.status);
   }
 
-  // Mais recentes primeiro
   items.sort((a, b) => b.foundAt.localeCompare(a.foundAt));
   res.json(items);
 });
@@ -84,22 +92,34 @@ router.get("/contestacoes/summary", (_req: Request, res: Response) => {
   });
 });
 
-// PATCH /contestacoes/:id/nova - contestações podem retornar ao estado de "novas"
+// PATCH /contestacoes/:id/nova
 router.patch("/contestacoes/:id/nova", (req, res) => {
-  db.markAsNova(req.params.id);
-  res.json({ ok: true });
+  try {
+    db.markAsNova(req.params.id);
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : "Contestação não encontrada" });
+  }
 });
 
-// PATCH /contestacoes/:id/encaminhar - contestações encaminhadas para o time de CS
+// PATCH /contestacoes/:id/encaminhar
 router.patch("/contestacoes/:id/encaminhar", (req, res) => {
-  db.markAsEncaminhada(req.params.id);
-  res.json({ ok: true });
+  try {
+    db.markAsEncaminhada(req.params.id);
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : "Contestação não encontrada" });
+  }
 });
 
-// PATCH /contestacoes/:id/revisar — marca como revisada
+// PATCH /contestacoes/:id/revisar
 router.patch("/contestacoes/:id/revisar", (req: Request, res: Response) => {
-  db.markAsRevisada(req.params.id);
-  res.json({ ok: true });
+  try {
+    db.markAsRevisada(req.params.id);
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : "Contestação não encontrada" });
+  }
 });
 
 // ── Scan ─────────────────────────────────────────────────────────────────────
@@ -111,7 +131,7 @@ router.post("/scan", async (req: Request, res: Response) => {
     return;
   }
 
-  const { clientId } = req.body; // opcional — se não informado, escaneia todos
+  const { clientId } = req.body;
   const clients = db.getClients();
   const targets = clientId ? clients.filter((c) => c.id === clientId) : clients;
 
@@ -120,15 +140,14 @@ router.post("/scan", async (req: Request, res: Response) => {
     return;
   }
 
-  // Responde imediatamente — scan roda em background
   res.json({
     ok: true,
     message: `Scan iniciado para ${targets.length} cliente(s)`,
   });
 
-  // Executa o scan em background
   db.setScanStatus("running");
   let found = 0;
+  let errors = 0;
 
   for (const client of targets) {
     try {
@@ -138,12 +157,19 @@ router.post("/scan", async (req: Request, res: Response) => {
         found++;
       });
     } catch (err) {
+      errors++;
       console.error(`Erro ao escanear cliente ${client.name}:`, err);
     }
   }
 
-  db.setScanStatus("done");
-  console.log(`Scan concluído: ${found} contestação(ões) encontrada(s)`);
+  // Status de erro se todos os clientes falharam
+  if (errors > 0 && found === 0) {
+    db.setScanStatus("error");
+  } else {
+    db.setScanStatus("done");
+  }
+
+  console.log(`Scan concluído: ${found} contestação(ões) encontrada(s), ${errors} erro(s)`);
 });
 
 // GET /scan/status — status do scan atual
@@ -154,8 +180,7 @@ router.get("/scan/status", (_req: Request, res: Response) => {
   });
 });
 
-// Agrupa contestações por cliente, mais organização
-
+// Agrupa contestações por cliente
 router.get("/contestacoes/agrupadas", (_req, res) => {
   const clientes = db.getClients();
   const contestacoes = db.getContestacoes();
@@ -176,7 +201,6 @@ router.get("/contestacoes/agrupadas", (_req, res) => {
     };
   });
 
-  // Ordena: com novas primeiro, depois encaminhadas, depois limpos
   grupos.sort((a, b) => {
     if (a.novas !== b.novas) return b.novas - a.novas;
     if (a.encaminhadas !== b.encaminhadas)
@@ -187,19 +211,22 @@ router.get("/contestacoes/agrupadas", (_req, res) => {
   res.json(grupos);
 });
 
-//encaminha as contestações em "lote"
+// Encaminha contestações em lote
 router.patch("/contestacoes/lote/encaminhar", (req, res) => {
   const { ids }: { ids: string[] } = req.body;
-  if (!ids?.length) {
-    res.status(400).json({ error: "ids obrigatório" });
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: "ids deve ser um array não vazio" });
     return;
   }
-  ids.forEach((id) => db.markAsEncaminhada(id));
-  res.json({ ok: true, count: ids.length });
+  try {
+    ids.forEach((id) => db.markAsEncaminhada(id));
+    res.json({ ok: true, count: ids.length });
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : "Erro ao encaminhar" });
+  }
 });
 
-// baixa o "pacote" de contestações por cliente
-
+// Baixa o pacote de contestações por cliente
 router.get("/contestacoes/lote/pacote", (req, res) => {
   const ids = (req.query.ids as string)?.split(",") ?? [];
   if (!ids.length) {
@@ -227,22 +254,28 @@ router.get("/contestacoes/lote/pacote", (req, res) => {
   const archive = archiver("zip");
   archive.pipe(res);
 
+  const dataDir = path.resolve("data");
+
   contestacoes.forEach((c) => {
     const vendedor = c.vendedorNome.replace(/\s+/g, "_").toLowerCase();
 
-    // Screenshot renomeado com nome do vendedor
-    if (fs.existsSync(c.screenshotPath)) {
-      archive.file(c.screenshotPath, {
-        name: `${marketplace}_${clientName}_${vendedor}_screenshot.png`,
-      });
+    if (c.screenshotPath) {
+      const resolvedPath = path.resolve(c.screenshotPath);
+      if (resolvedPath.startsWith(dataDir) && fs.existsSync(resolvedPath)) {
+        archive.file(resolvedPath, {
+          name: `${marketplace}_${clientName}_${vendedor}_screenshot.png`,
+        });
+      }
     }
 
-    // NFs renomeadas com nome do vendedor
     c.notasFiscais.forEach((nf, i) => {
-      if (fs.existsSync(nf.filePath)) {
-        archive.file(nf.filePath, {
-          name: `${marketplace}_${clientName}_${vendedor}_nf_${nf.numeroNF ?? i + 1}.pdf`,
-        });
+      if (nf.filePath) {
+        const resolvedPath = path.resolve(nf.filePath);
+        if (resolvedPath.startsWith(dataDir) && fs.existsSync(resolvedPath)) {
+          archive.file(resolvedPath, {
+            name: `${marketplace}_${clientName}_${vendedor}_nf_${nf.numeroNF ?? i + 1}.pdf`,
+          });
+        }
       }
     });
   });

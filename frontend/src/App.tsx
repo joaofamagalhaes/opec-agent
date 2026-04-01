@@ -4,7 +4,6 @@ import { Dashboard } from "./pages/Dashboard";
 import { Clients } from "./pages/Clients";
 import { getSummary } from "./services/api";
 
-
 type Page = "dashboard" | "clients";
 
 export default function App() {
@@ -38,9 +37,7 @@ export default function App() {
           >
             <span className="nav-icon">⬡</span>
             Dashboard
-            {novas > 0 && (
-              <span className="nav-badge">{novas}</span>
-            )}
+            {novas > 0 && <span className="nav-badge">{novas}</span>}
           </button>
 
           <button

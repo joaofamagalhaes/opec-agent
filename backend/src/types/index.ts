@@ -13,7 +13,7 @@ export interface Client {
   name: string; // Nome da marca/cliente
   marketplace: Marketplace;
   username: string;
-  password: string; // TODO: criptografar em produção
+  password: string; // Armazenado encriptado (AES-256-GCM via services/crypto.ts)
   createdAt: string; // ISO 8601
 }
 

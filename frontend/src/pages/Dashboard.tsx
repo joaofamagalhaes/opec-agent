@@ -1,5 +1,5 @@
 // pages/Dashboard.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { getSummary, getAgrupadas, startScan } from "../services/api";
 import { SummaryResponse, GrupoCliente } from "../types";
 // import { ContestacaoCard } from "../components/ContestacaoCard";
@@ -14,6 +14,7 @@ export function Dashboard({ onNovasChange }: Props) {
   const [grupos, setGrupos] = useState<GrupoCliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -33,12 +34,19 @@ export function Dashboard({ onNovasChange }: Props) {
       await startScan();
       // Polling até scan terminar
       // TODO: substituir por WebSocket para updates em tempo real
-      const poll = setInterval(async () => {
-        const data = await getSummary();
-        if (data.scanStatus !== "running") {
-          clearInterval(poll);
+      pollRef.current = setInterval(async () => {
+        try {
+          const data = await getSummary();
+          if (data.scanStatus !== "running") {
+            clearInterval(pollRef.current!);
+            pollRef.current = null;
+            setScanning(false);
+            loadData();
+          }
+        } catch {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
           setScanning(false);
-          loadData();
         }
       }, 2_000);
     } catch (err) {
@@ -46,6 +54,13 @@ export function Dashboard({ onNovasChange }: Props) {
       console.error(err);
     }
   }
+
+  // Limpa o intervalo ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   // Função que indica quando o ultimo scan de contas foi feito, desativado por hora
   // function formatLastScan(iso: string | null) {
@@ -64,7 +79,7 @@ export function Dashboard({ onNovasChange }: Props) {
   return (
     <>
       <div className="topbar">
-        <span className="topbar-title">Contestações</span>
+        <span className="topbar-title">Central de Contestações</span>
         <div className="topbar-actions">
           <button
             className={`btn btn-scan ${scanning ? "scanning" : ""}`}

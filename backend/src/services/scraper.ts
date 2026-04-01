@@ -1,15 +1,16 @@
 // services/scraper.ts
 // Responsável por acessar os marketplaces e coletar contestações.
 //
-// FASE 1 (MVP): retorna dados mockados realistas para demonstração.
-// FASE 2: descomente os blocos de Playwright e implemente o scraping real.
+// MOCK_MODE=true  → retorna dados fictícios (para demos/testes sem credenciais reais)
+// MOCK_MODE=false → usa Playwright para scraping real (Fase 2)
 
 import { chromium } from "playwright";
-import path from "path";
 import { Client, Contestacao, NotaFiscal } from "../types/index.js";
-import { extractNFData } from "./nfExtractor.js";
+import { scrapeMercadoLivre } from "./scrapers/mercadolivre.js";
+import { scrapeShopee } from "./scrapers/shopee.js";
 
-// NF fictícia para demonstração — simula o texto que viria de um PDF real
+// ── Mock data (MOCK_MODE=true) ────────────────────────────────────────────────
+
 const MOCK_NF_TEXT = `
 NOTA FISCAL ELETRÔNICA - NF-e
 Número: 000123456   Série: 001   Data de Emissão: 2025-03-10
@@ -33,33 +34,6 @@ Valor Total dos Produtos: R$ 1.899,00
 Valor do ICMS: R$ 341,82
 Valor Total da NF-e: R$ 1.899,00
 `;
-
-// Dados mockados — representam o que o scraper retornaria em produção
-// const MOCK_CONTESTACOES: Omit<
-//   Contestacao,
-//   "id" | "notasFiscais" | "status" | "foundAt" | "revisadaAt" | "encaminhadaAt"
-// >[] = [
-//   {
-//     clientId: "", // preenchido em runtime
-//     clientName: "",
-//     marketplace: "mercadolivre",
-//     vendedorNome: "distribuidora_silva_oficial",
-//     vendedorUrl: "https://www.mercadolivre.com.br/perfil/distribuidora_silva",
-//     textoContestacao:
-//       "Somos revendedor autorizado da marca. Segue nota fiscal de compra legítima do produto diretamente do fabricante. Não há violação de marca, pois adquirimos o estoque de forma regular.",
-//     screenshotPath: "data/screenshots/mock_ml_contestacao.png",
-//   },
-//   {
-//     clientId: "",
-//     clientName: "",
-//     marketplace: "shopee",
-//     vendedorNome: "loja_premium_sp",
-//     vendedorUrl: "https://shopee.com.br/loja_premium_sp",
-//     textoContestacao:
-//       "Os produtos vendidos são originais. Temos autorização do distribuidor regional. Em anexo NF de aquisição. Solicitamos revisão da denúncia pois estamos em conformidade.",
-//     screenshotPath: "data/screenshots/mock_shopee_contestacao.png",
-//   },
-// ];
 
 const MOCK_CONTESTACOES: Omit<
   Contestacao,
@@ -151,148 +125,135 @@ const MOCK_CONTESTACOES: Omit<
   },
 ];
 
+const MOCK_NOTAS_FISCAIS: NotaFiscal[] = [
+  {
+    fileName: "nf_tramontina_ml_10293.pdf",
+    filePath: "data/nfs/nf_tramontina_ml_10293.pdf",
+    rawText: MOCK_NF_TEXT,
+    cnpjEmitente: "45678912000155",
+    nomeEmitente: "Distribuidora Atacadista Sul Ltda",
+    cnpjDestinatario: "11222333000144",
+    nomeDestinatario: "Utilidades Reis Comercio",
+    produto: "Jogo de Panelas Inox Tramontina 5 Peças",
+    valorTotal: 4500.0,
+    dataEmissao: "2026-02-15",
+    numeroNF: "000010293",
+  },
+  {
+    fileName: "nf_mundial_ml_88472.pdf",
+    filePath: "data/nfs/nf_mundial_ml_88472.pdf",
+    rawText: MOCK_NF_TEXT,
+    cnpjEmitente: "98765432000188",
+    nomeEmitente: "Atacadão da Cutelaria BR",
+    cnpjDestinatario: "55444333000122",
+    nomeDestinatario: "Atacadão da Beleza Oficial ME",
+    produto: "Kit Alicates Mundial Classic Lote 100un",
+    valorTotal: 2150.0,
+    dataEmissao: "2026-01-20",
+    numeroNF: "000088472",
+  },
+  {
+    fileName: "nf_pacco_ml_55021.pdf",
+    filePath: "data/nfs/nf_pacco_ml_55021.pdf",
+    rawText: MOCK_NF_TEXT,
+    cnpjEmitente: "11122233000199",
+    nomeEmitente: "Importadora Térmicos Brasil S.A.",
+    cnpjDestinatario: "77888999000155",
+    nomeDestinatario: "Termicos e Cia E-commerce",
+    produto: "Garrafa Térmica Pacco Hydra 950ml",
+    valorTotal: 8900.0,
+    dataEmissao: "2026-03-05",
+    numeroNF: "000055021",
+  },
+  {
+    fileName: "nf_labotrat_ml_11902.pdf",
+    filePath: "data/nfs/nf_labotrat_ml_11902.pdf",
+    rawText: MOCK_NF_TEXT,
+    cnpjEmitente: "33444555000177",
+    nomeEmitente: "Fábrica Labotrat Cosméticos",
+    cnpjDestinatario: "99000111000166",
+    nomeDestinatario: "Skin Care Brasil Varejo",
+    produto: "Esfoliante Corpo e Rosto Labotrat Morango 50un",
+    valorTotal: 1200.0,
+    dataEmissao: "2026-02-28",
+    numeroNF: "000011902",
+  },
+  {
+    fileName: "nf_tramontina_shopee_33410.pdf",
+    filePath: "data/nfs/nf_tramontina_shopee_33410.pdf",
+    rawText: MOCK_NF_TEXT,
+    cnpjEmitente: "55666777000122",
+    nomeEmitente: "Central das Utilidades Atacado",
+    cnpjDestinatario: "22333444000188",
+    nomeDestinatario: "Casa Perfeita SP Comercio",
+    produto: "Jogo de Facas Tramontina Plenus 6 Peças",
+    valorTotal: 1850.0,
+    dataEmissao: "2026-01-10",
+    numeroNF: "000033410",
+  },
+  {
+    fileName: "nf_mundial_shopee_09921.pdf",
+    filePath: "data/nfs/nf_mundial_shopee_09921.pdf",
+    rawText: MOCK_NF_TEXT,
+    cnpjEmitente: "88999000000144",
+    nomeEmitente: "Fornecedora Salão Pro Distribuidora",
+    cnpjDestinatario: "44555666000111",
+    nomeDestinatario: "Salão e Cia Store",
+    produto: "Tesoura Profissional Mundial Fio Laser 20un",
+    valorTotal: 3400.0,
+    dataEmissao: "2026-03-12",
+    numeroNF: "000009921",
+  },
+  {
+    fileName: "nf_pacco_shopee_77654.pdf",
+    filePath: "data/nfs/nf_pacco_shopee_77654.pdf",
+    rawText: MOCK_NF_TEXT,
+    cnpjEmitente: "22111000000133",
+    nomeEmitente: "Distribuidora Esportiva BR",
+    cnpjDestinatario: "66777888000199",
+    nomeDestinatario: "Aventura Esportes BR Artigos",
+    produto: "Copo Térmico Pacco 500ml Inox",
+    valorTotal: 5600.0,
+    dataEmissao: "2026-02-05",
+    numeroNF: "000077654",
+  },
+  {
+    fileName: "nf_labotrat_shopee_44320.pdf",
+    filePath: "data/nfs/nf_labotrat_shopee_44320.pdf",
+    rawText: MOCK_NF_TEXT,
+    cnpjEmitente: "99888777000155",
+    nomeEmitente: "Distribuidora Beleza Oficial",
+    cnpjDestinatario: "11222333000166",
+    nomeDestinatario: "Império dos Cosméticos Ltda",
+    produto: "Creme Hidratante Labotrat Pêssego Caixa 30un",
+    valorTotal: 950.0,
+    dataEmissao: "2026-03-01",
+    numeroNF: "000044320",
+  },
+];
+
+// ── Scan principal ────────────────────────────────────────────────────────────
+
 /**
  * Escaneia um cliente e retorna as contestações encontradas.
- * MVP: retorna mock. Fase 2: usa Playwright para scraping real.
+ *
+ * MOCK_MODE=true  → dados fictícios (demo sem credenciais)
+ * MOCK_MODE=false → scraping real via Playwright
  */
 export async function scanClient(client: Client): Promise<Contestacao[]> {
-  // ── FASE 1: Mock ────────────────────────────────────────────────────────────
-  // Simula delay de rede para parecer realista na demo
-  await new Promise((res) => setTimeout(res, 800));
+  if (process.env.MOCK_MODE === "true") {
+    return runMock(client);
+  }
+  return runScraper(client);
+}
 
-  // Sorteia aleatoriamente se há contestação nova (para demo dinâmica)
-  const hasContestacao = true;
-  if (!hasContestacao) return [];
+// ── Fase 1: Mock ─────────────────────────────────────────────────────────────
+
+async function runMock(client: Client): Promise<Contestacao[]> {
+  await new Promise((res) => setTimeout(res, 800));
 
   const mockBase =
     MOCK_CONTESTACOES[Math.floor(Math.random() * MOCK_CONTESTACOES.length)];
-
-  // Extrai dados da NF usando a Claude API de verdade (desativado no momento)
-  // const nf = await extractNFData(MOCK_NF_TEXT, "nf_000123456.pdf", "data/nfs/mock_nf.pdf");
-  // Mock fixo para testar a demo
-  // const nf: NotaFiscal = {
-  //   fileName: "nf_000123456.pdf",
-  //   filePath: "data/nfs/mock_nf.pdf",
-  //   rawText: MOCK_NF_TEXT,
-  //   cnpjEmitente: "12345678000190",
-  //   nomeEmitente: "Comercial Distribuidora Silva Ltda",
-  //   cnpjDestinatario: "98765432000111",
-  //   nomeDestinatario: "Marketplace Vendedor Individual",
-  //   produto: "Tênis Esportivo Running Pro",
-  //   valorTotal: 1899.0,
-  //   dataEmissao: "2025-03-10",
-  //   numeroNF: "000123456",
-  // };
-
-  const MOCK_NOTAS_FISCAIS: NotaFiscal[] = [
-    // --- MERCADO LIVRE ---
-    {
-      fileName: "nf_tramontina_ml_10293.pdf",
-      filePath: "data/nfs/nf_tramontina_ml_10293.pdf",
-      rawText: MOCK_NF_TEXT, // Assumindo que você tem essa constante definida no seu arquivo
-      cnpjEmitente: "45678912000155",
-      nomeEmitente: "Distribuidora Atacadista Sul Ltda",
-      cnpjDestinatario: "11222333000144",
-      nomeDestinatario: "Utilidades Reis Comercio",
-      produto: "Jogo de Panelas Inox Tramontina 5 Peças",
-      valorTotal: 4500.0,
-      dataEmissao: "2026-02-15",
-      numeroNF: "000010293",
-    },
-    {
-      fileName: "nf_mundial_ml_88472.pdf",
-      filePath: "data/nfs/nf_mundial_ml_88472.pdf",
-      rawText: MOCK_NF_TEXT,
-      cnpjEmitente: "98765432000188",
-      nomeEmitente: "Atacadão da Cutelaria BR",
-      cnpjDestinatario: "55444333000122",
-      nomeDestinatario: "Atacadão da Beleza Oficial ME",
-      produto: "Kit Alicates Mundial Classic Lote 100un",
-      valorTotal: 2150.0,
-      dataEmissao: "2026-01-20",
-      numeroNF: "000088472",
-    },
-    {
-      fileName: "nf_pacco_ml_55021.pdf",
-      filePath: "data/nfs/nf_pacco_ml_55021.pdf",
-      rawText: MOCK_NF_TEXT,
-      cnpjEmitente: "11122233000199",
-      nomeEmitente: "Importadora Térmicos Brasil S.A.",
-      cnpjDestinatario: "77888999000155",
-      nomeDestinatario: "Termicos e Cia E-commerce",
-      produto: "Garrafa Térmica Pacco Hydra 950ml",
-      valorTotal: 8900.0,
-      dataEmissao: "2026-03-05",
-      numeroNF: "000055021",
-    },
-    {
-      fileName: "nf_labotrat_ml_11902.pdf",
-      filePath: "data/nfs/nf_labotrat_ml_11902.pdf",
-      rawText: MOCK_NF_TEXT,
-      cnpjEmitente: "33444555000177",
-      nomeEmitente: "Fábrica Labotrat Cosméticos",
-      cnpjDestinatario: "99000111000166",
-      nomeDestinatario: "Skin Care Brasil Varejo",
-      produto: "Esfoliante Corpo e Rosto Labotrat Morango 50un",
-      valorTotal: 1200.0,
-      dataEmissao: "2026-02-28",
-      numeroNF: "000011902",
-    },
-
-    // --- SHOPEE ---
-    {
-      fileName: "nf_tramontina_shopee_33410.pdf",
-      filePath: "data/nfs/nf_tramontina_shopee_33410.pdf",
-      rawText: MOCK_NF_TEXT,
-      cnpjEmitente: "55666777000122",
-      nomeEmitente: "Central das Utilidades Atacado",
-      cnpjDestinatario: "22333444000188",
-      nomeDestinatario: "Casa Perfeita SP Comercio",
-      produto: "Jogo de Facas Tramontina Plenus 6 Peças",
-      valorTotal: 1850.0,
-      dataEmissao: "2026-01-10",
-      numeroNF: "000033410",
-    },
-    {
-      fileName: "nf_mundial_shopee_09921.pdf",
-      filePath: "data/nfs/nf_mundial_shopee_09921.pdf",
-      rawText: MOCK_NF_TEXT,
-      cnpjEmitente: "88999000000144",
-      nomeEmitente: "Fornecedora Salão Pro Distribuidora",
-      cnpjDestinatario: "44555666000111",
-      nomeDestinatario: "Salão e Cia Store",
-      produto: "Tesoura Profissional Mundial Fio Laser 20un",
-      valorTotal: 3400.0,
-      dataEmissao: "2026-03-12",
-      numeroNF: "000009921",
-    },
-    {
-      fileName: "nf_pacco_shopee_77654.pdf",
-      filePath: "data/nfs/nf_pacco_shopee_77654.pdf",
-      rawText: MOCK_NF_TEXT,
-      cnpjEmitente: "22111000000133",
-      nomeEmitente: "Distribuidora Esportiva BR",
-      cnpjDestinatario: "66777888000199",
-      nomeDestinatario: "Aventura Esportes BR Artigos",
-      produto: "Copo Térmico Pacco 500ml Inox",
-      valorTotal: 5600.0,
-      dataEmissao: "2026-02-05",
-      numeroNF: "000077654",
-    },
-    {
-      fileName: "nf_labotrat_shopee_44320.pdf",
-      filePath: "data/nfs/nf_labotrat_shopee_44320.pdf",
-      rawText: MOCK_NF_TEXT,
-      cnpjEmitente: "99888777000155",
-      nomeEmitente: "Distribuidora Beleza Oficial",
-      cnpjDestinatario: "11222333000166",
-      nomeDestinatario: "Império dos Cosméticos Ltda",
-      produto: "Creme Hidratante Labotrat Pêssego Caixa 30un",
-      valorTotal: 950.0,
-      dataEmissao: "2026-03-01",
-      numeroNF: "000044320",
-    },
-  ];
 
   const contestacao: Contestacao = {
     id: `${client.id}_${Date.now()}`,
@@ -313,47 +274,22 @@ export async function scanClient(client: Client): Promise<Contestacao[]> {
   };
 
   return [contestacao];
-
-  // ── FASE 2: Playwright real ─────────────────────────────────────────────────
-  // Quando quiser ativar o scraping real:
-  // 1. Comente o bloco FASE 1 acima
-  // 2. Descomente o bloco abaixo
-  // 3. Preencha os seletores em scrapers/mercadolivre.ts e scrapers/shopee.ts
-  //
-  // import { scrapeMercadoLivre } from "./scrapers/mercadolivre.js";
-  // import { scrapeShopee }       from "./scrapers/shopee.js";
-  //
-  // const browser = await chromium.launch({ headless: true });
-  // const page    = await browser.newPage();
-  // try {
-  //   if (client.marketplace === "mercadolivre") {
-  //     return await scrapeMercadoLivre(page, client);
-  //   } else {
-  //     return await scrapeShopee(page, client);
-  //   }
-  // } finally {
-  //   await browser.close();
-  // }
 }
 
-/**
- * TODO: Fase 2 — implementar scraping real do Mercado Livre.
- *
- * Fluxo esperado:
- * 1. Navegar para https://www.mercadolivre.com.br/
- * 2. Fazer login com client.username e client.password
- * 3. Navegar até a área de denúncias/contestações
- * 4. Para cada contestação aberta:
- *    a. Capturar screenshot: await page.screenshot({ path: screenshotPath })
- *    b. Extrair texto da resposta do vendedor
- *    c. Baixar PDFs de NF anexados
- *    d. Chamar extractNFData() para cada PDF
- * 5. Retornar array de Contestacao
- */
-// async function scrapeMercadoLivre(page, client: Client): Promise<Contestacao[]> { ... }
+// ── Fase 2: Playwright real ───────────────────────────────────────────────────
 
-/**
- * TODO: Fase 2 — implementar scraping real da Shopee.
- * Estrutura similar ao Mercado Livre.
- */
-// async function scrapeShopee(page, client: Client): Promise<Contestacao[]> { ... }
+async function runScraper(client: Client): Promise<Contestacao[]> {
+  const headless = process.env.PLAYWRIGHT_HEADLESS !== "false";
+  const browser = await chromium.launch({ headless });
+  const page = await browser.newPage();
+
+  try {
+    if (client.marketplace === "mercadolivre") {
+      return await scrapeMercadoLivre(page, client);
+    } else {
+      return await scrapeShopee(page, client);
+    }
+  } finally {
+    await browser.close();
+  }
+}
