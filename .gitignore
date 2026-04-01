@@ -146,3 +146,4 @@ vite.config.ts.timestamp-*
  
 #  png files to analyse errors 
 .png
+*.png
