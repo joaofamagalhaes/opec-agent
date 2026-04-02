@@ -16,6 +16,7 @@ interface Database {
   scanLog: ScanLog[];
   currentScanStatus: ScanStatus;
   lastScan: string | null;
+  mockMode: boolean;
 }
 
 // Garante que o diretório de dados existe
@@ -36,11 +37,18 @@ function read(): Database {
       scanLog: [],
       currentScanStatus: "idle",
       lastScan: null,
+      // Inicializa a partir da variável de ambiente, padrão false (real)
+      mockMode: process.env.MOCK_MODE === "true",
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(empty, null, 2));
     return empty;
   }
-  return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  const data = JSON.parse(fs.readFileSync(DB_FILE, "utf-8")) as Database;
+  // Migração: bancos antigos sem o campo mockMode assumem false
+  if (data.mockMode === undefined) {
+    data.mockMode = process.env.MOCK_MODE === "true";
+  }
+  return data;
 }
 
 function write(data: Database) {
@@ -108,6 +116,21 @@ export function markAsRevisada(id: string): void {
   if (!item) throw new Error("Contestação não encontrada");
   item.status = "revisada";
   item.revisadaAt = new Date().toISOString();
+  write(db);
+}
+
+// ── Mock Mode ─────────────────────────────────────────────────────────────────
+
+export function getMockMode(): boolean {
+  return read().mockMode;
+}
+
+/** Altera o modo e limpa as contestações existentes (clientes são mantidos). */
+export function setMockMode(enabled: boolean): void {
+  const db = read();
+  db.mockMode = enabled;
+  db.contestacoes = [];
+  db.currentScanStatus = "idle";
   write(db);
 }
 

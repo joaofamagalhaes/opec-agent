@@ -1,46 +1,88 @@
-// services/scrapers/shopee.ts
-// Scraper da Shopee — estrutura idêntica ao mercadolivre.ts.
+// Fluxo automatizado:
+//   1. Login
+//   2. Navegar para lista de contestações
+//   3. Clicar em "Exportar" e baixar o XLSX
+//   4. Parsear o XLSX → obter Appeal IDs, Item IDs, Shop IDs
+//   5. Para cada Appeal ID, navegar direto para /detail/{id}
+//   6. Coletar: motivo da contestação (texto), screenshot, evidências (download)
+//      → PDFs são extraídos como NotaFiscal
+//      → Demais arquivos são salvos como Anexo
 //
 // Como validar os seletores:
 //   1. Sete PLAYWRIGHT_HEADLESS=false no .env
 //   2. Rode um scan — o browser abrirá visível
 //   3. Inspecione os elementos e atualize o objeto SELECTORS abaixo
-//
-// A Shopee usa React com classes geradas dinamicamente — prefira atributos
-// data-* ou seletores de texto quando possível, pois são mais estáveis.
 
 import { Page } from "playwright";
 import path from "path";
 import fs from "fs";
+// import * as XLSX from "xlsx";
+
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
+
+const XLSX = require("xlsx");
+
 const pdfParse = require("pdf-parse") as (
   buf: Buffer,
 ) => Promise<{ text: string }>;
-import { Client, Contestacao } from "../../types/index.js";
+import { Client, Contestacao, Anexo } from "../../types/index.js";
 import { extractNFData } from "../nfExtractor.js";
 
 const SCREENSHOTS_DIR = path.resolve("data/screenshots");
 const NF_DIR = path.resolve("data/nfs");
+const EXPORTS_DIR = path.resolve("data/exports");
 
 // ── Seletores CSS da Shopee ────────────────────────────────────────────────
 const SELECTORS = {
+  // Login
   loginUsername:
-    '[placeholder="Professional Work Email"], [placeholder="Email de Trabalho"] ',
+    '[placeholder="Professional Work Email"], [placeholder="Email de Trabalho"]',
   loginPassword: '[placeholder="Password"], [placeholder="Senha"]',
   loginButton: 'button:has-text("Log In"), button:has-text("Entrar")',
 
-  // Indicador de sessão autenticada (ajuste após inspeção manual)
-  loggedInIndicator: '[class*="account"]',
+  // Indicador de sessão autenticada — ajuste após inspeção manual
+  loggedInIndicator: '[class="shopee-react-dropdown"]',
 
-  // Área de disputas/contestações (ajuste após inspeção manual)
-  contestacaoContainer: '[class*="dispute"]',
-  contestacaoText: '[class*="seller-reply"]',
-  vendedorNome: '[class*="shop-name"]',
-  vendedorUrl: '[class*="shop-link"]',
-  nfAttachment: '[class*="file-attachment"] a',
+  // Lista de contestações
+  exportButton: 'button:has-text("Exportar"), button:has-text("Export")',
+
+  // Página de detalhe — motivo da contestação
+  motivoLabel:
+    "text=Motivo da Contestação, text=Appeal Reason, text=Reason for Appeal",
 };
 
+// ── Tipos auxiliares ───────────────────────────────────────────────────────
+interface LinhaXLSX {
+  appealId: string;
+  itemId: string;
+  shopId: string;
+  brand: string;
+  violationType: string;
+  status: string;
+}
+
+interface EvidenciasColetadas {
+  notasFiscais: any[];
+  anexo: Anexo[];
+}
+
+// ── MimeType map ───────────────────────────────────────────────────────────
+const MIME_MAP: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".zip": "application/zip",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".xls": "application/vnd.ms-excel",
+  ".doc": "application/msword",
+  ".docx":
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
+// ── Login ──────────────────────────────────────────────────────────────────
 async function login(
   page: Page,
   username: string,
@@ -49,9 +91,7 @@ async function login(
   try {
     await page.goto(
       "https://brandipp.business.accounts.shopee.com/authenticate/login?lang=pt-BR&should_hide_back=true&client_id=9&next=https%3A%2F%2Fbrandipp.shopee.com",
-      {
-        waitUntil: "networkidle",
-      },
+      { waitUntil: "networkidle" },
     );
 
     await page.waitForSelector(SELECTORS.loginUsername, { timeout: 10_000 });
@@ -60,16 +100,17 @@ async function login(
     await page.click(SELECTORS.loginButton);
 
     await page.waitForLoadState("networkidle", { timeout: 15_000 });
-    await page.waitForTimeout(3_000);
+    await page.waitForTimeout(30_000);
 
     const loggedIn = await page
-
       .locator(SELECTORS.loggedInIndicator)
       .isVisible()
       .catch(() => false);
 
     if (!loggedIn) {
-      await page.waitForTimeout(3_000);
+      console.warn(
+        "[Shopee] Login não confirmado — salvando screenshot de debug",
+      );
       await page.screenshot({
         path: path.join(
           SCREENSHOTS_DIR,
@@ -93,133 +134,237 @@ async function login(
   }
 }
 
-async function navigateToContestacoes(page: Page): Promise<void> {
-  await page.goto("https://seller.shopee.com.br/portal/dispute", {
-    waitUntil: "networkidle",
-    timeout: 20_000,
-  });
+// ── Exportar XLSX da lista de contestações ─────────────────────────────────
+async function exportarXLSX(page: Page): Promise<string | null> {
+  try {
+    await page.goto("https://brandipp.shopee.com/case-management/appeal/list", {
+      waitUntil: "networkidle",
+      timeout: 20_000,
+    });
+
+    await page.waitForSelector(SELECTORS.exportButton, { timeout: 30_000 });
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 30_000 }),
+      page.click(SELECTORS.exportButton),
+    ]);
+
+    fs.mkdirSync(EXPORTS_DIR, { recursive: true });
+    const filePath = path.join(EXPORTS_DIR, `shopee_export_${Date.now()}.xlsx`);
+    await download.saveAs(filePath);
+
+    console.log(`[Shopee] XLSX exportado: ${filePath}`);
+    return filePath;
+  } catch (err) {
+    console.error("[Shopee] Erro ao exportar XLSX:", err);
+    return null;
+  }
 }
 
-async function collectContestacoes(
+// ── Parsear XLSX exportado ─────────────────────────────────────────────────
+function parseXLSX(filePath: string): LinhaXLSX[] {
+  const workbook = XLSX.readFile(filePath);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet) as any[];
+
+  return rows
+    .map((row) => ({
+      appealId: String(row["Appeal ID"] ?? row["appeal_id"] ?? "").trim(),
+      itemId: String(row["Item ID"] ?? row["item_id"] ?? "").trim(),
+      shopId: String(row["Shop ID"] ?? row["shop_id"] ?? "").trim(),
+      brand: String(row["Brand"] ?? row["brand"] ?? "").trim(),
+      violationType: String(
+        row["Violation Type"] ?? row["IP Type"] ?? "",
+      ).trim(),
+      status: String(row["Status"] ?? "").trim(),
+    }))
+    .filter((row) => row.appealId !== "");
+}
+
+// ── Download das evidências de uma contestação ─────────────────────────────
+async function downloadEvidencias(
   page: Page,
   client: Client,
-): Promise<Contestacao[]> {
-  const results: Contestacao[] = [];
-  const items = await page.locator(SELECTORS.contestacaoContainer).all();
+  appealId: string,
+): Promise<EvidenciasColetadas> {
+  const notasFiscais: any[] = [];
+  const anexo: Anexo[] = [];
 
-  for (const item of items) {
-    try {
-      const texto = await item
-        .locator(SELECTORS.contestacaoText)
-        .innerText()
-        .catch(() => "");
-      const vendedorNome = await item
-        .locator(SELECTORS.vendedorNome)
-        .innerText()
-        .catch(() => "vendedor desconhecido");
-      const vendedorUrl = await item
-        .locator(SELECTORS.vendedorUrl)
-        .getAttribute("href")
-        .catch(() => "");
+  // Ancora pelo texto "Evidência(s)" — estável independente de classes dinâmicas
+  const secaoEvidencia = page.locator(
+    'p:has-text("Evidência"), p:has-text("Evidence")',
+  );
+  const container = secaoEvidencia.locator("xpath=following-sibling::div[1]");
+  const fileItems = await container.locator('[class*="file-item"]').all();
 
-      const screenshotName = `shopee_${client.id}_${Date.now()}.png`;
-      const screenshotPath = path.join(SCREENSHOTS_DIR, screenshotName);
-      await item.screenshot({ path: screenshotPath });
-
-      const notasFiscais = await downloadNFs(page, item, client);
-
-      results.push({
-        id: `shopee_${client.id}_${Date.now()}`,
-        clientId: client.id,
-        clientName: client.name,
-        marketplace: "shopee",
-        vendedorNome,
-        vendedorUrl: vendedorUrl ?? "",
-        textoContestacao: texto,
-        screenshotPath,
-        notasFiscais,
-        status: "nova",
-        foundAt: new Date().toISOString(),
-        encaminhadaAt: null,
-        revisadaAt: null,
-      });
-    } catch (err) {
-      console.error("[Shopee] Erro ao coletar contestação:", err);
-      await page
-        .screenshot({
-          path: path.join(
-            SCREENSHOTS_DIR,
-            `debug_shopee_collect_error_${Date.now()}.png`,
-          ),
-        })
-        .catch(() => {});
-    }
+  if (fileItems.length === 0) {
+    console.log(`[Shopee] Nenhuma evidência no appeal ${appealId}`);
+    return { notasFiscais, anexo };
   }
 
-  return results;
-}
-
-async function downloadNFs(page: Page, item: any, client: Client) {
-  const nfs = [];
-  const links = await item.locator(SELECTORS.nfAttachment).all();
-
-  for (const link of links) {
+  for (const fileItem of fileItems) {
     try {
-      const href = await link.getAttribute("href");
-      if (!href) continue;
+      // Último ícone de ação = botão de download (o primeiro é visualizar)
+      const downloadBtn = fileItem
+        .locator('[class*="action-icon_wrap"]')
+        .last();
 
-      const cookies = await page.context().cookies();
-      const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+      const [download] = await Promise.all([
+        page.waitForEvent("download", { timeout: 15_000 }),
+        downloadBtn.click(),
+      ]);
 
-      const response = await page.evaluate(
-        async ({
-          url,
-          cookieHeader,
-        }: {
-          url: string;
-          cookieHeader: string;
-        }) => {
-          const r = await fetch(url, { headers: { Cookie: cookieHeader } });
-          const buffer = await r.arrayBuffer();
-          return Array.from(new Uint8Array(buffer));
-        },
-        { url: href, cookieHeader: cookieStr },
-      );
-
-      const fileName = `nf_shopee_${client.id}_${Date.now()}.pdf`;
+      const ext =
+        path.extname(download.suggestedFilename()).toLowerCase() || ".bin";
+      const fileName = `evidencia_shopee_${client.id}_${appealId}_${Date.now()}${ext}`;
       const filePath = path.join(NF_DIR, fileName);
-      fs.writeFileSync(filePath, Buffer.from(response));
 
-      const pdfData = await pdfParse(fs.readFileSync(filePath));
-      const rawText = pdfData.text;
+      fs.mkdirSync(NF_DIR, { recursive: true });
+      await download.saveAs(filePath);
+      console.log(`[Shopee] Evidência salva: ${fileName}`);
 
-      const nf = await extractNFData(rawText, fileName, filePath);
-      nfs.push(nf);
+      if (ext === ".pdf") {
+        // PDF → extrai como Nota Fiscal
+        const pdfData = await pdfParse(fs.readFileSync(filePath));
+        const nf = await extractNFData(pdfData.text, fileName, filePath);
+        notasFiscais.push(nf);
+      } else {
+        // Qualquer outro formato → salva como Anexo
+        anexo.push({
+          fileName,
+          filePath,
+          mimeType: MIME_MAP[ext] ?? "application/octet-stream",
+          downloadedAt: new Date().toISOString(),
+        });
+      }
     } catch (err) {
-      console.error("[Shopee] Erro ao baixar/processar NF:", err);
+      console.error(
+        `[Shopee] Erro ao baixar evidência do appeal ${appealId}:`,
+        err,
+      );
     }
   }
 
-  return nfs;
+  return { notasFiscais, anexo };
 }
 
+// ── Coletar detalhe de uma contestação ────────────────────────────────────
+async function coletarDetalhe(
+  page: Page,
+  linha: LinhaXLSX,
+  client: Client,
+): Promise<Contestacao> {
+  await page.goto(
+    `https://brandipp.shopee.com/case-management/appeal/detail/${linha.appealId}?region=BR`,
+    { waitUntil: "networkidle", timeout: 20_000 },
+  );
+
+  await page.waitForTimeout(1_500);
+
+  // Motivo da contestação — parágrafo logo abaixo do label
+  const motivo = await page
+    .locator(SELECTORS.motivoLabel)
+    .locator("xpath=following-sibling::p[1] | xpath=following-sibling::div[1]")
+    .innerText()
+    .catch(async () => {
+      // Fallback: tenta classes parciais da seção de motivo
+      return await page
+        .locator('[class*="appeal-reason"], [class*="reason-content"]')
+        .innerText()
+        .catch(() => "");
+    });
+
+  // Screenshot fullPage da página de detalhe
+  const screenshotName = `shopee_${client.id}_${linha.appealId}_${Date.now()}.png`;
+  const screenshotPath = path.join(SCREENSHOTS_DIR, screenshotName);
+  fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+
+  // Evidências: PDFs → notasFiscais | demais → anexos
+  const { notasFiscais, anexo } = await downloadEvidencias(
+    page,
+    client,
+    linha.appealId,
+  );
+
+  return {
+    id: `shopee_${linha.appealId}`,
+    clientId: client.id,
+    clientName: client.name,
+    marketplace: "shopee",
+    vendedorNome: linha.shopId,
+    vendedorUrl: "",
+    textoContestacao: motivo.trim(),
+    screenshotPath,
+    notasFiscais,
+    anexo,
+    status: "nova",
+    foundAt: new Date().toISOString(),
+    encaminhadaAt: null,
+    revisadaAt: null,
+    meta: {
+      appealId: linha.appealId,
+      itemId: linha.itemId,
+      shopId: linha.shopId,
+      brand: linha.brand,
+      violationType: linha.violationType,
+      statusShopee: linha.status,
+    },
+  };
+}
+
+// ── Entry point ────────────────────────────────────────────────────────────
 export async function scrapeShopee(
   page: Page,
   client: Client,
 ): Promise<Contestacao[]> {
   console.log(`[Shopee] Iniciando scan: ${client.name}`);
 
+  // 1. Login
   const loggedIn = await login(page, client.username, client.password);
   if (!loggedIn) {
     console.error(`[Shopee] Falha no login para ${client.name}`);
     return [];
   }
 
-  await navigateToContestacoes(page);
-  const contestacoes = await collectContestacoes(page, client);
+  // 2. Exportar XLSX da lista de contestações
+  const xlsxPath = await exportarXLSX(page);
+  if (!xlsxPath) {
+    console.error("[Shopee] Não foi possível exportar o XLSX — abortando");
+    return [];
+  }
+
+  // 3. Parsear XLSX → lista de Appeal IDs
+  const linhas = parseXLSX(xlsxPath);
+  console.log(
+    `[Shopee] ${linhas.length} contestação(ões) encontrada(s) no XLSX`,
+  );
+
+  if (linhas.length === 0) return [];
+
+  // 4. Para cada linha, navegar para o detalhe e coletar dados
+  const results: Contestacao[] = [];
+
+  for (const linha of linhas) {
+    try {
+      console.log(`[Shopee] Processando appeal ${linha.appealId}...`);
+      const contestacao = await coletarDetalhe(page, linha, client);
+      results.push(contestacao);
+    } catch (err) {
+      console.error(`[Shopee] Erro no appeal ${linha.appealId}:`, err);
+      await page
+        .screenshot({
+          path: path.join(
+            SCREENSHOTS_DIR,
+            `debug_shopee_detail_error_${linha.appealId}_${Date.now()}.png`,
+          ),
+        })
+        .catch(() => {});
+    }
+  }
 
   console.log(
-    `[Shopee] ${contestacoes.length} contestação(ões) para ${client.name}`,
+    `[Shopee] ${results.length} contestação(ões) coletada(s) para ${client.name}`,
   );
-  return contestacoes;
+  return results;
 }

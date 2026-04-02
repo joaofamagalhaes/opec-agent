@@ -271,6 +271,41 @@ body,
   font-size: 12px;
 }
 
+/* Botão de modo mock/real */
+.btn-mode {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  transition: opacity 150ms ease, background 150ms ease;
+}
+
+.btn-mode-mock {
+  background: rgba(124, 106, 247, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(124, 106, 247, 0.35);
+}
+
+.btn-mode-mock:hover:not(:disabled) {
+  background: rgba(124, 106, 247, 0.22);
+}
+
+.btn-mode-real {
+  background: rgba(46, 204, 113, 0.12);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.35);
+}
+
+.btn-mode-real:hover:not(:disabled) {
+  background: rgba(46, 204, 113, 0.22);
+}
+
+.btn-mode:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Botão de scan com animação de pulso */
 .btn-scan {
   background: var(--accent);

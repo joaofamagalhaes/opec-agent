@@ -8,6 +8,7 @@ import { chromium } from "playwright";
 import { Client, Contestacao, NotaFiscal } from "../types/index.js";
 import { scrapeMercadoLivre } from "./scrapers/mercadolivre.js";
 import { scrapeShopee } from "./scrapers/shopee.js";
+import { getMockMode } from "./database.js";
 
 // ── Mock data (MOCK_MODE=true) ────────────────────────────────────────────────
 
@@ -37,7 +38,13 @@ Valor Total da NF-e: R$ 1.899,00
 
 const MOCK_CONTESTACOES: Omit<
   Contestacao,
-  "id" | "notasFiscais" | "status" | "foundAt" | "revisadaAt" | "encaminhadaAt"
+  | "id"
+  | "notasFiscais"
+  | "status"
+  | "foundAt"
+  | "revisadaAt"
+  | "encaminhadaAt"
+  | "anexo"
 >[] = [
   // --- MERCADO LIVRE ---
   {
@@ -241,7 +248,7 @@ const MOCK_NOTAS_FISCAIS: NotaFiscal[] = [
  * MOCK_MODE=false → scraping real via Playwright
  */
 export async function scanClient(client: Client): Promise<Contestacao[]> {
-  if (process.env.MOCK_MODE === "true") {
+  if (getMockMode()) {
     return runMock(client);
   }
   return runScraper(client);
@@ -267,6 +274,7 @@ async function runMock(client: Client): Promise<Contestacao[]> {
     notasFiscais: [
       MOCK_NOTAS_FISCAIS[Math.floor(Math.random() * MOCK_NOTAS_FISCAIS.length)],
     ],
+    anexo: [],
     status: "nova",
     foundAt: new Date().toISOString(),
     encaminhadaAt: null,
@@ -278,17 +286,27 @@ async function runMock(client: Client): Promise<Contestacao[]> {
 
 // ── Fase 2: Playwright real ───────────────────────────────────────────────────
 
+const SCRAPER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos por cliente
+
 async function runScraper(client: Client): Promise<Contestacao[]> {
   const headless = process.env.PLAYWRIGHT_HEADLESS !== "false";
   const browser = await chromium.launch({ headless });
   const page = await browser.newPage();
 
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`Timeout: scraper do cliente "${client.name}" excedeu ${SCRAPER_TIMEOUT_MS / 1000}s`)),
+      SCRAPER_TIMEOUT_MS,
+    ),
+  );
+
   try {
-    if (client.marketplace === "mercadolivre") {
-      return await scrapeMercadoLivre(page, client);
-    } else {
-      return await scrapeShopee(page, client);
-    }
+    const scrapePromise =
+      client.marketplace === "mercadolivre"
+        ? scrapeMercadoLivre(page, client)
+        : scrapeShopee(page, client);
+
+    return await Promise.race([scrapePromise, timeoutPromise]);
   } finally {
     await browser.close();
   }

@@ -36,6 +36,13 @@ export interface NotaFiscal {
   // Texto bruto extraído do PDF (para debug e auditoria)
   rawText: string;
 }
+// Caso o anexo não seja uma NF:
+export interface Anexo {
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  downloadedAt: string;
+}
 
 // ── Contestação ───────────────────────────────────────────────────────────────
 
@@ -51,6 +58,17 @@ export interface Contestacao {
   textoContestacao: string; // Resposta do vendedor
   screenshotPath: string; // Caminho do print salvo localmente
   notasFiscais: NotaFiscal[]; // NFs baixadas e extraídas
+  anexo: Anexo[]; // Caso haja um anexo que não seja uma NF na contestação
+
+  // Dados coletados da planilha
+  meta?: {
+    appealId: string;
+    itemId: string;
+    shopId: string;
+    brand: string;
+    violationType: string;
+    statusShopee: string;
+  };
 
   // Metadados
   status: ContestacaoStatus;

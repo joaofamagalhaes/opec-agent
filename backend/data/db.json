@@ -7,10 +7,80 @@
       "username": "admin.marketplace@ftd.com.br",
       "password": "c49daefa5c856bb1de0ccd34:02670a9d7891985aea4ff815a780ea65:690fdfd7d0b0481a2e77af",
       "createdAt": "2026-04-01T19:19:18.135Z"
+    },
+    {
+      "id": "cd59954a-210f-4d68-b3c1-dbd06f96ddda",
+      "name": "Tramontina",
+      "marketplace": "mercadolivre",
+      "username": "tramontina@mercadolivre.com",
+      "password": "930e80b9b0086a46460894e4:805f22bd22f8ae60ec07fa886dc81f7a:538d313c4caa6d870605",
+      "createdAt": "2026-04-02T04:00:17.196Z"
     }
   ],
-  "contestacoes": [],
+  "contestacoes": [
+    {
+      "id": "2181837e-6ff6-48d6-9a1f-d64c07f64196_1775102420591",
+      "clientId": "2181837e-6ff6-48d6-9a1f-d64c07f64196",
+      "clientName": "Lumisfera",
+      "marketplace": "shopee",
+      "vendedorNome": "casa_perfeita_sp",
+      "vendedorUrl": "https://shopee.com.br/casa_perfeita_sp",
+      "textoContestacao": "A denúncia de falsificação não procede. O jogo de facas é original e lacrado na embalagem de fábrica. Trabalho de forma honesta na plataforma e envio a nota de entrada para comprovar.",
+      "screenshotPath": "data/screenshots/shopee_tramontina_contestacao.png",
+      "notasFiscais": [
+        {
+          "fileName": "nf_mundial_ml_88472.pdf",
+          "filePath": "data/nfs/nf_mundial_ml_88472.pdf",
+          "rawText": "\nNOTA FISCAL ELETRÔNICA - NF-e\nNúmero: 000123456   Série: 001   Data de Emissão: 2025-03-10\n\nEMITENTE\nRazão Social: COMERCIAL DISTRIBUIDORA SILVA LTDA\nCNPJ: 12.345.678/0001-90\nEndereço: Rua das Flores, 456 - São Paulo/SP\n\nDESTINATÁRIO\nRazão Social: MARKETPLACE VENDEDOR INDIVIDUAL\nCNPJ: 98.765.432/0001-11\n\nPRODUTOS\n001 - Produto: Tênis Esportivo Running Pro - Ref. TE-2024\n      Quantidade: 10 UN   Valor Unitário: R$ 189,90\n      Valor Total: R$ 1.899,00\n\nTOTAL DA NOTA\nValor Total dos Produtos: R$ 1.899,00\nValor do ICMS: R$ 341,82\nValor Total da NF-e: R$ 1.899,00\n",
+          "cnpjEmitente": "98765432000188",
+          "nomeEmitente": "Atacadão da Cutelaria BR",
+          "cnpjDestinatario": "55444333000122",
+          "nomeDestinatario": "Atacadão da Beleza Oficial ME",
+          "produto": "Kit Alicates Mundial Classic Lote 100un",
+          "valorTotal": 2150,
+          "dataEmissao": "2026-01-20",
+          "numeroNF": "000088472"
+        }
+      ],
+      "anexo": [],
+      "status": "nova",
+      "foundAt": "2026-04-02T04:00:20.591Z",
+      "encaminhadaAt": null,
+      "revisadaAt": null
+    },
+    {
+      "id": "cd59954a-210f-4d68-b3c1-dbd06f96ddda_1775102421400",
+      "clientId": "cd59954a-210f-4d68-b3c1-dbd06f96ddda",
+      "clientName": "Tramontina",
+      "marketplace": "mercadolivre",
+      "vendedorNome": "termicos_e_cia",
+      "vendedorUrl": "https://www.mercadolivre.com.br/perfil/termicos_e_cia",
+      "textoContestacao": "Gostaria de entender a denúncia, pois sou revendedor autorizado e as garrafas e copos térmicos são legítimos. Não há infração de propriedade intelectual, peço a liberação imediata do meu produto.",
+      "screenshotPath": "data/screenshots/ml_pacco_contestacao.png",
+      "notasFiscais": [
+        {
+          "fileName": "nf_mundial_ml_88472.pdf",
+          "filePath": "data/nfs/nf_mundial_ml_88472.pdf",
+          "rawText": "\nNOTA FISCAL ELETRÔNICA - NF-e\nNúmero: 000123456   Série: 001   Data de Emissão: 2025-03-10\n\nEMITENTE\nRazão Social: COMERCIAL DISTRIBUIDORA SILVA LTDA\nCNPJ: 12.345.678/0001-90\nEndereço: Rua das Flores, 456 - São Paulo/SP\n\nDESTINATÁRIO\nRazão Social: MARKETPLACE VENDEDOR INDIVIDUAL\nCNPJ: 98.765.432/0001-11\n\nPRODUTOS\n001 - Produto: Tênis Esportivo Running Pro - Ref. TE-2024\n      Quantidade: 10 UN   Valor Unitário: R$ 189,90\n      Valor Total: R$ 1.899,00\n\nTOTAL DA NOTA\nValor Total dos Produtos: R$ 1.899,00\nValor do ICMS: R$ 341,82\nValor Total da NF-e: R$ 1.899,00\n",
+          "cnpjEmitente": "98765432000188",
+          "nomeEmitente": "Atacadão da Cutelaria BR",
+          "cnpjDestinatario": "55444333000122",
+          "nomeDestinatario": "Atacadão da Beleza Oficial ME",
+          "produto": "Kit Alicates Mundial Classic Lote 100un",
+          "valorTotal": 2150,
+          "dataEmissao": "2026-01-20",
+          "numeroNF": "000088472"
+        }
+      ],
+      "anexo": [],
+      "status": "nova",
+      "foundAt": "2026-04-02T04:00:21.400Z",
+      "encaminhadaAt": null,
+      "revisadaAt": null
+    }
+  ],
   "scanLog": [],
   "currentScanStatus": "done",
-  "lastScan": "2026-04-01T20:30:51.612Z"
+  "lastScan": "2026-04-02T04:00:21.404Z",
+  "mockMode": true
 }

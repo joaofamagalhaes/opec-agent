@@ -83,3 +83,13 @@ export const startScan = (clientId?: string) =>
 
 export const getScanStatus = () =>
   request<{ status: string; lastScan: string | null }>("/scan/status");
+
+// ── Modo (mock / real) ────────────────────────────────────────────────────────
+
+export const getMode = () => request<{ mock: boolean }>("/mode");
+
+export const setMode = (mock: boolean) =>
+  request<{ ok: boolean; mock: boolean }>("/mode", {
+    method: "POST",
+    body: JSON.stringify({ mock }),
+  });

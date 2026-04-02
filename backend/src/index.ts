@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { router } from "./routes/api.js";
+import { getScanStatus, setScanStatus } from "./services/database.js";
 
 dotenv.config();
 
@@ -16,6 +17,10 @@ app.use(express.json());
 app.use("/api", router);
 
 app.listen(PORT, () => {
+  if (getScanStatus() === "running") {
+    setScanStatus("error");
+    console.warn("⚠ Scan anterior não finalizado — status resetado para 'error'.");
+  }
   console.log(`OPEC Agent backend rodando em http://localhost:${PORT}`);
   console.log(`API disponível em http://localhost:${PORT}/api`);
 });

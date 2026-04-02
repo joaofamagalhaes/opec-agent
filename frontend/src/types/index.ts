@@ -15,6 +15,7 @@ export interface Client {
 
 export interface NotaFiscal {
   fileName: string;
+  filePath: string;
   cnpjEmitente: string | null;
   nomeEmitente: string | null;
   cnpjDestinatario: string | null;
@@ -23,6 +24,14 @@ export interface NotaFiscal {
   valorTotal: number | null;
   dataEmissao: string | null;
   numeroNF: string | null;
+  rawText: string;
+}
+
+export interface Anexo {
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  downloadedAt: string;
 }
 
 export interface Contestacao {
@@ -31,10 +40,19 @@ export interface Contestacao {
   clientName: string;
   marketplace: Marketplace;
   vendedorNome: string;
-  vendedorUrl: string;
+  vendedorUrl: string | null;
   textoContestacao: string;
   screenshotPath: string;
   notasFiscais: NotaFiscal[];
+  anexo: Anexo[];
+  meta?: {
+    appealId: string;
+    itemId: string;
+    shopId: string;
+    brand: string;
+    violationType: string;
+    statusShopee: string;
+  };
   status: ContestacaoStatus;
   foundAt: string;
   encaminhadaAt: string | null;

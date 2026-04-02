@@ -1,8 +1,7 @@
 // pages/Dashboard.tsx
 import { useEffect, useRef, useState, useCallback } from "react";
-import { getSummary, getAgrupadas, startScan } from "../services/api";
+import { getSummary, getAgrupadas, startScan, getMode, setMode } from "../services/api";
 import { SummaryResponse, GrupoCliente } from "../types";
-// import { ContestacaoCard } from "../components/ContestacaoCard";
 import { GrupoCard } from "../components/GrupoCards";
 
 interface Props {
@@ -14,14 +13,21 @@ export function Dashboard({ onNovasChange }: Props) {
   const [grupos, setGrupos] = useState<GrupoCliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [mockMode, setMockMode] = useState<boolean | null>(null);
+  const [togglingMode, setTogglingMode] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [sum, grps] = await Promise.all([getSummary(), getAgrupadas()]);
+      const [sum, grps, mode] = await Promise.all([
+        getSummary(),
+        getAgrupadas(),
+        getMode(),
+      ]);
       setSummary(sum);
       setGrupos(grps);
+      setMockMode(mode.mock);
       onNovasChange(sum.novas);
     } finally {
       setLoading(false);
@@ -32,8 +38,6 @@ export function Dashboard({ onNovasChange }: Props) {
     setScanning(true);
     try {
       await startScan();
-      // Polling até scan terminar
-      // TODO: substituir por WebSocket para updates em tempo real
       pollRef.current = setInterval(async () => {
         try {
           const data = await getSummary();
@@ -55,22 +59,33 @@ export function Dashboard({ onNovasChange }: Props) {
     }
   }
 
+  async function handleToggleMode() {
+    if (mockMode === null) return;
+    const next = !mockMode;
+    const label = next ? "Mock" : "Real";
+    const confirm = window.confirm(
+      `Mudar para modo ${label}?\n\nTodas as contestações serão apagadas. Os clientes serão mantidos.`
+    );
+    if (!confirm) return;
+
+    setTogglingMode(true);
+    try {
+      await setMode(next);
+      await loadData();
+    } catch (err) {
+      console.error("Erro ao mudar modo:", err);
+      alert("Erro ao mudar o modo. Tente novamente.");
+    } finally {
+      setTogglingMode(false);
+    }
+  }
+
   // Limpa o intervalo ao desmontar o componente
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
-
-  // Função que indica quando o ultimo scan de contas foi feito, desativado por hora
-  // function formatLastScan(iso: string | null) {
-  //   if (!iso) return "Nunca";
-  //   const d = new Date(iso);
-  //   return d.toLocaleString("pt-BR", {
-  //     dateStyle: "short",
-  //     timeStyle: "short",
-  //   });
-  // }
 
   useEffect(() => {
     loadData();
@@ -81,6 +96,16 @@ export function Dashboard({ onNovasChange }: Props) {
       <div className="topbar">
         <span className="topbar-title">Central de Contestações</span>
         <div className="topbar-actions">
+          {mockMode !== null && (
+            <button
+              className={`btn btn-mode ${mockMode ? "btn-mode-mock" : "btn-mode-real"}`}
+              onClick={handleToggleMode}
+              disabled={togglingMode || scanning}
+              title={mockMode ? "Modo mock ativo — clique para usar dados reais" : "Modo real ativo — clique para usar dados fictícios"}
+            >
+              {togglingMode ? "..." : mockMode ? "⬡ Mock" : "● Real"}
+            </button>
+          )}
           <button
             className={`btn btn-scan ${scanning ? "scanning" : ""}`}
             onClick={handleScan}

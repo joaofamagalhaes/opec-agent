@@ -79,14 +79,18 @@ export function ContestacaoCard({ contestacao: c, onRevisada }: Props) {
         <div className="card-section">
           <div className="section-label">Vendedor</div>
           <div className="vendedor-name">{c.vendedorNome}</div>
-          <a
-            className="vendedor-url"
-            href={c.vendedorUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {c.vendedorUrl}
-          </a>
+          {c.vendedorUrl ? (
+            <a
+              className="vendedor-url"
+              href={c.vendedorUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {c.vendedorUrl}
+            </a>
+          ) : (
+            <span className="vendedor-url">—</span>
+          )}
         </div>
         <div className="card-section">
           <div className="section-label">Resposta do vendedor</div>

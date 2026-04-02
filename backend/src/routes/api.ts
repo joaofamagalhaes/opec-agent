@@ -140,12 +140,13 @@ router.post("/scan", async (req: Request, res: Response) => {
     return;
   }
 
+  db.setScanStatus("running");
+
   res.json({
     ok: true,
     message: `Scan iniciado para ${targets.length} cliente(s)`,
   });
 
-  db.setScanStatus("running");
   let found = 0;
   let errors = 0;
 
@@ -178,6 +179,28 @@ router.get("/scan/status", (_req: Request, res: Response) => {
     status: db.getScanStatus(),
     lastScan: db.getLastScan(),
   });
+});
+
+// ── Modo (mock / real) ────────────────────────────────────────────────────────
+
+// GET /mode — retorna o modo atual
+router.get("/mode", (_req: Request, res: Response) => {
+  res.json({ mock: db.getMockMode() });
+});
+
+// POST /mode — altera o modo e limpa contestações
+router.post("/mode", (req: Request, res: Response) => {
+  const { mock } = req.body;
+  if (typeof mock !== "boolean") {
+    res.status(400).json({ error: "Campo 'mock' deve ser boolean" });
+    return;
+  }
+  if (db.getScanStatus() === "running") {
+    res.status(409).json({ error: "Não é possível mudar o modo durante um scan" });
+    return;
+  }
+  db.setMockMode(mock);
+  res.json({ ok: true, mock });
 });
 
 // Agrupa contestações por cliente
