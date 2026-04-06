@@ -2,6 +2,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import { router } from "./routes/api.js";
 import { getScanStatus, setScanStatus } from "./services/database.js";
 
@@ -19,6 +21,14 @@ const allowedOrigins = process.env.FRONTEND_URL
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 app.use("/api", router);
+
+// Em produção, serve o frontend estático (React build)
+if (process.env.NODE_ENV === "production") {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const frontendDist = path.resolve(__dirname, "../../frontend/dist");
+  app.use(express.static(frontendDist));
+  app.get("*", (_req, res) => res.sendFile(path.join(frontendDist, "index.html")));
+}
 
 app.listen(PORT, () => {
   if (getScanStatus() === "running") {

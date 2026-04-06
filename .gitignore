@@ -144,6 +144,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
  
-#  png files to analyse errors 
+#  png files to analyse errors
 .png
 *.png
+
+# Dados locais do banco (não commitar — criado automaticamente em produção)
+backend/data/
