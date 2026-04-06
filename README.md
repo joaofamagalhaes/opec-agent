@@ -197,6 +197,42 @@ O sistema opera em dois modos controlados pelo botão no dashboard:
 
 ---
 
+## Deploy (produção)
+
+O backend usa Playwright (Chromium headless) e não pode rodar em plataformas serverless como funções do Vercel. A arquitetura de produção é:
+
+| Serviço | Plataforma | Motivo |
+|---------|-----------|--------|
+| Frontend | **Vercel** | Build estático, deploy automático via Git |
+| Backend | **Render** | Suporta Node.js completo + Playwright |
+
+### Frontend no Vercel
+
+1. Importe o repositório no [Vercel](https://vercel.com)
+2. Vercel detecta o `vercel.json` na raiz automaticamente — nenhuma configuração extra de build é necessária
+3. Adicione a variável de ambiente no painel do Vercel:
+   ```
+   VITE_API_URL=https://opec-agent-backend.onrender.com/api
+   ```
+   (substitua pela URL real do seu serviço no Render)
+
+### Backend no Render
+
+1. Crie um novo serviço **Web Service** no [Render](https://render.com)
+2. Aponte para o repositório e configure o **Root Directory** como `backend`
+3. Render detecta o `render.yaml` automaticamente com os comandos de build e start
+4. Adicione as variáveis de ambiente no painel do Render:
+
+   | Variável | Valor |
+   |----------|-------|
+   | `DB_ENCRYPTION_KEY` | Chave hex de 64 caracteres (gere conforme `.env.example`) |
+   | `ANTHROPIC_API_KEY` | Sua chave da API do Claude |
+   | `FRONTEND_URL` | URL do seu deploy no Vercel (ex: `https://opec-agent.vercel.app`) |
+
+> **Nota sobre persistência:** No free tier do Render o disco é efêmero — o `db.json` é apagado a cada redeploy. Para dados persistentes em produção, adicione um Persistent Disk no Render ou migre para PostgreSQL (Fase 2).
+
+---
+
 ## Estado atual da implementação
 
 ### Funcionando (Fase 1 — completo)
