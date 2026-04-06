@@ -1,0 +1,5 @@
+{
+  "name": "opec-agent",
+  "private": true,
+  "engines": { "node": ">=20" }
+}
